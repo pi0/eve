@@ -7,7 +7,8 @@ import { normalizeGeneratedEsmImportSpecifiers } from "#internal/application/imp
  * their imports so raw Windows drive-letter paths become valid file URLs.
  */
 export function addNitroRoutingImportSpecifierPlugin(nitro: Nitro): void {
-  nitro.hooks.hook("rollup:before", (_nitro, config) => {
+  nitro.hooks.hook("build:config", (_nitro, build) => {
+    const config = build.rolldown ?? build.rollup;
     if (!Array.isArray(config.plugins)) {
       return;
     }

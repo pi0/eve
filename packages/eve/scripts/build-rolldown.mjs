@@ -17,7 +17,7 @@ import { readdir } from "node:fs/promises";
 import { isBuiltin } from "node:module";
 import { join, parse, relative } from "node:path";
 
-import { buildWithNitroRolldown } from "./nitro-rolldown.mjs";
+import { buildWithRolldown } from "./rolldown.mjs";
 import vendoredZod from "./vendor-compiled/zod.mjs";
 import { onVendoredDependencyLog } from "../src/internal/bundler/vendored-dependency-log.ts";
 
@@ -321,7 +321,7 @@ const input = Object.fromEntries(
   }),
 );
 
-await buildWithNitroRolldown({
+await buildWithRolldown({
   input,
   external: isExternalPackageSpecifier,
   platform: "node",
@@ -413,7 +413,7 @@ if (vueSourceFiles.length > 0) {
     return false;
   }
 
-  await buildWithNitroRolldown({
+  await buildWithRolldown({
     input: vueInput,
     external: isVueBuildExternal,
     platform: "node",
@@ -470,7 +470,7 @@ if (svelteSourceFiles.length > 0) {
     return false;
   }
 
-  await buildWithNitroRolldown({
+  await buildWithRolldown({
     input: svelteInput,
     external: isSvelteBuildExternal,
     platform: "node",

@@ -12,7 +12,7 @@ import {
   createRuntimeLoaderPackageBoundaryPlugin,
   normalizeExternalDependencies,
 } from "#internal/authored-package-boundary.js";
-import { buildWithNitroRolldown } from "#internal/bundler/nitro-rolldown.js";
+import { buildWithRolldown } from "#internal/bundler/rolldown.js";
 
 /**
  * Bundles a compile's application modules as one code-split graph per set of
@@ -66,7 +66,7 @@ async function writeAuthoredModuleGraph(
       .filter((modulePath) => resolveAuthoredPackageRoot(modulePath) === packageRoot)
       .map((modulePath, index) => [`entry-${index}`, modulePath]),
   );
-  const result = await buildWithNitroRolldown({
+  const result = await buildWithRolldown({
     ...createAuthoredModuleBuildOptions({
       packageBoundaryPlugin: createRuntimeLoaderPackageBoundaryPlugin({
         externalDependencies: [...externalDependencies],
