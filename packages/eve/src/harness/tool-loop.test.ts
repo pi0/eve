@@ -1490,6 +1490,57 @@ describe("createToolLoopHarness", () => {
     ).rejects.toThrow(/Dynamic model selection is required/);
   });
 
+  // Regression for #5128: the resolver heard the previous step's index from the second step on.
+  it("gives the dynamic model resolver the index of the step it selects for", async () => {
+    const addStep = (toolCallId: string) => {
+      const toolCall = { input: {}, toolCallId, toolName: "add", type: "tool-call" };
+      const toolResult = { ...toolCall, output: "42", type: "tool-result" };
+      return {
+        finishReason: "tool-calls",
+        response: {
+          messages: [
+            { content: [toolCall], role: "assistant" },
+            { content: [toolResult], role: "tool" },
+          ],
+        },
+        text: "",
+        toolCalls: [toolCall],
+        toolResults: [toolResult],
+      };
+    };
+    setupMockAgentSequence([
+      addStep("call-1"),
+      addStep("call-2"),
+      {
+        finishReason: "stop",
+        response: { messages: [{ content: "84", role: "assistant" }] },
+        text: "84",
+        toolCalls: [],
+        toolResults: [],
+      },
+    ]);
+    const { emit, events } = createEventCollector();
+    const resolverStepIndexes: number[] = [];
+    const runStep = createToolLoopHarness(
+      createTestConfig(emit, {
+        dispatchDynamicModelEvent: async ({ event }) => {
+          if (event.type === "step.started") resolverStepIndexes.push(event.data.stepIndex);
+        },
+      }),
+    );
+
+    await contextStorage.run(new ContextContainer(), async () => {
+      let result = await runStep(createTestSession(), { message: "Add twice." });
+      while (typeof result.next === "function") result = await result.next(result.session);
+    });
+
+    const streamStepIndexes = events.flatMap((event) =>
+      event.type === "step.started" ? [event.data.stepIndex] : [],
+    );
+    expect(streamStepIndexes).toEqual([0, 1, 2]);
+    expect(resolverStepIndexes).toEqual(streamStepIndexes);
+  });
+
   it("adds delivered history before each turn's context and message", async () => {
     setupMockAgent({
       finishReason: "stop",

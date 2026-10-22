@@ -76,6 +76,7 @@ const custom = defineSandboxProvider({
   name: "custom",
   environment() {
     return {
+      async onSessionEnd() {},
       async prepare() { return null; },
       async resume() { throw new Error("unused"); },
       async start() { throw new Error("unused"); },

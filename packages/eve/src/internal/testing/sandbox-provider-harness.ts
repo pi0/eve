@@ -33,7 +33,30 @@ export function createSandboxProviderHarness<
     );
   }
 
+  function sessionContext(appRoot: string, sandboxName: string) {
+    return {
+      host: createSandboxProviderHost(appRoot),
+      session: {
+        auth: { current: null, initiator: null },
+        id: sandboxName,
+        turn: { id: "test-turn", sequence: 0 },
+      },
+      storagePath: appRoot,
+    } as const;
+  }
+
   const harness = {
+    async endSession(input: {
+      readonly appRoot: string;
+      readonly sandboxName: string;
+      readonly state: SessionState | null;
+    }): Promise<void> {
+      await implementation.onSessionEnd(
+        sessionContext(input.appRoot, input.sandboxName),
+        input.state,
+        { reason: "completed" },
+      );
+    },
     async prepare(input: {
       readonly appRoot: string;
       readonly log?: (message: string) => void;
@@ -70,15 +93,7 @@ export function createSandboxProviderHarness<
       readonly sandboxName: string;
     }): Promise<SandboxProviderHandle<Session>> {
       const artifact = await resolveArtifact(input);
-      const context = {
-        host: createSandboxProviderHost(input.appRoot),
-        session: {
-          auth: { current: null, initiator: null },
-          id: input.sandboxName,
-          turn: { id: "test-turn", sequence: 0 },
-        },
-        storagePath: input.appRoot,
-      } as const;
+      const context = sessionContext(input.appRoot, input.sandboxName);
       if (input.existing === undefined) {
         return (await implementation.start(context, options, artifact)).handle;
       }
@@ -86,21 +101,14 @@ export function createSandboxProviderHarness<
     },
     async start(input: {
       readonly appRoot: string;
+      readonly options?: Options;
       readonly prepared?: PreparedArtifact;
       readonly sandboxName: string;
     }) {
       const artifact = await resolveArtifact(input);
       return await implementation.start(
-        {
-          host: createSandboxProviderHost(input.appRoot),
-          session: {
-            auth: { current: null, initiator: null },
-            id: input.sandboxName,
-            turn: { id: "test-turn", sequence: 0 },
-          },
-          storagePath: input.appRoot,
-        },
-        options,
+        sessionContext(input.appRoot, input.sandboxName),
+        input.options ?? options,
         artifact,
       );
     },

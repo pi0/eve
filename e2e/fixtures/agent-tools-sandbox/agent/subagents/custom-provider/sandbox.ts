@@ -10,6 +10,8 @@ const provider = defineSandboxProvider<undefined, undefined, null, CustomState, 
   name: "custom-provider-session",
   environment() {
     return {
+      // Each handle keeps its files in memory, so nothing outlives the session.
+      async onSessionEnd() {},
       async prepare() {
         return null;
       },

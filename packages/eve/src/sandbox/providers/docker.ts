@@ -18,7 +18,7 @@ const provider = defineSandboxProvider<
   DockerSandboxEnvironmentOptions,
   DockerSandboxRuntimeOptions,
   { readonly imageReference: string },
-  { readonly containerName: string; readonly generation: string; readonly version: 2 },
+  { readonly containerName: string; readonly version: 2 },
   DockerSandboxSession
 >({
   name: "docker",

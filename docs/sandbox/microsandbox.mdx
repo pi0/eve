@@ -28,4 +28,6 @@ Pass `networkPolicy` to `open()`. The policy applies to the live VM, not the pre
 
 Session creation uses the recorded snapshot and image directly. Writable VM state persists through the provider's session snapshot lifecycle.
 
+A session's creation, reconnection, and cleanup share a cross-process lock, so separate sessions don't wait on each other. An opener reuses a running VM instead of replacing it. Restoring saved state uses a recoverable target name, so a process that exits before publishing metadata does not leave an undiscoverable VM.
+
 See the [sandbox overview](/docs/sandbox) for managed workspace, skills, parent inheritance, and custom providers.

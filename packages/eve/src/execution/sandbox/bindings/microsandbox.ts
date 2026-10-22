@@ -6,6 +6,8 @@ type NetworkPolicySandboxSession = SandboxSession & {
 import { enrichMicrosandboxError } from "#execution/sandbox/bindings/microsandbox-create.js";
 import {
   createMicrosandboxHandle,
+  deleteMicrosandboxSession,
+  microsandboxSessionIdentity,
   type MicrosandboxPreparedArtifact,
   prewarmMicrosandboxTemplate,
 } from "#execution/sandbox/bindings/microsandbox-lifecycle.js";
@@ -32,7 +34,6 @@ export { pruneMicrosandboxTemplates } from "#execution/sandbox/bindings/microsan
 export const MICROSANDBOX_PROVIDER_NAME = "microsandbox";
 
 export type MicrosandboxProviderSessionState = {
-  readonly optionsHash: string;
   readonly sessionIdentity: string;
   readonly version: 3;
 };
@@ -53,6 +54,12 @@ export function createMicrosandboxSandboxProvider(
   );
 
   return {
+    async onSessionEnd(context, state) {
+      await deleteMicrosandboxSession({
+        context,
+        sessionIdentity: state?.sessionIdentity ?? microsandboxSessionIdentity(context),
+      });
+    },
     async prepare(context) {
       const dockerfile = await materializeSandboxDockerfile({
         files: context.files,
@@ -82,14 +89,6 @@ export function createMicrosandboxSandboxProvider(
     async resume(context, artifactValue, stateValue) {
       const artifact = requireArtifact(artifactValue);
       const state = requireState(stateValue);
-      if (
-        state.optionsHash !== optionsHash ||
-        artifact.optionsHash !== optionsHash ||
-        state.sessionIdentity !==
-          microsandboxSessionIdentity(context.session.id, artifact, optionsHash)
-      ) {
-        throw new Error("microsandbox session state is incompatible with this environment.");
-      }
       const result = await createMicrosandboxHandle({
         artifact,
         context,
@@ -103,29 +102,18 @@ export function createMicrosandboxSandboxProvider(
     },
     async start(context, runtimeOptions, artifactValue) {
       const artifact = requireArtifact(artifactValue);
-      const result = await createMicrosandboxHandle({
+      return await createMicrosandboxHandle({
         artifact,
         context,
+        createIfMissing: true,
         options,
         optionsHash,
         providerName: MICROSANDBOX_PROVIDER_NAME,
         runtimeOptions,
+        sessionIdentity: microsandboxSessionIdentity(context),
       });
-      return result;
     },
   };
-}
-
-function microsandboxSessionIdentity(
-  sessionId: string,
-  artifact: MicrosandboxPreparedArtifact,
-  optionsHash: string,
-): string {
-  const identity = createStableHash(`${sessionId}:${artifact.snapshotName}:${optionsHash}`).slice(
-    0,
-    32,
-  );
-  return identity;
 }
 
 function requireArtifact(artifact: SandboxPreparedArtifact): MicrosandboxPreparedArtifact {
@@ -149,14 +137,9 @@ function requireState(state: unknown): MicrosandboxProviderSessionState {
   if (
     !isSandboxPreparedArtifactRecord(state) ||
     state.version !== 3 ||
-    typeof state.optionsHash !== "string" ||
     typeof state.sessionIdentity !== "string"
   ) {
     throw new Error("Invalid microsandbox session state.");
   }
-  return {
-    optionsHash: state.optionsHash,
-    sessionIdentity: state.sessionIdentity,
-    version: 3,
-  };
+  return { sessionIdentity: state.sessionIdentity, version: 3 };
 }

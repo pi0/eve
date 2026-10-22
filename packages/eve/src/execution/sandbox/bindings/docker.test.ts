@@ -88,3 +88,52 @@ describe("Docker sandbox deletion", () => {
     );
   });
 });
+
+describe("Docker sandbox session identity", () => {
+  it("names the container from the session key alone and removes it by key at session end", async () => {
+    let removed = false;
+    const run: DockerCli["run"] = vi.fn(async (args: readonly string[]) => {
+      const gone = args[0] === "rm" && removed;
+      if (args[0] === "rm") removed = true;
+      return {
+        exitCode: gone ? 1 : 0,
+        stderr: gone ? "Error response from daemon: No such container: eve-sbx" : "",
+        stdout:
+          args[0] === "container" && args[3] === "{{.State.Running}}"
+            ? "true\n"
+            : args[0] === "container" && args[3] === "{{.Id}}"
+              ? "container-id-1\n"
+              : "",
+        stdoutBytes: Buffer.alloc(0),
+      };
+    });
+    const dockerCli: DockerCli = {
+      run,
+      stream() {
+        throw new Error("stream is not used by this test");
+      },
+    };
+    const provider = createSandboxProviderHarness(
+      createDockerSandboxProvider(undefined, dockerCli),
+      {},
+      { preparedArtifact: () => ({ imageReference: "image-a" }) },
+    );
+    const session = { appRoot: "/tmp/eve-app", sandboxName: "session-key" };
+
+    const { state } = await provider.start(session);
+    const later = await provider.start({
+      ...session,
+      options: { networkPolicy: "deny-all" },
+      prepared: { imageReference: "image-b" },
+    });
+    expect(later.state).toEqual(state);
+
+    vi.mocked(run).mockClear();
+    await provider.endSession({ ...session, state: null });
+    await provider.endSession({ ...session, state: null });
+    expect(vi.mocked(run).mock.calls.map(([args]) => args)).toEqual([
+      ["rm", "-f", state.containerName],
+      ["rm", "-f", state.containerName],
+    ]);
+  });
+});

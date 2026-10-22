@@ -5,6 +5,7 @@ import { defineSandboxProvider } from "#shared/sandbox-provider.js";
 const provider = defineSandboxProvider({
   name: "test",
   environment: () => ({
+    async onSessionEnd() {},
     async prepare() {
       return null;
     },

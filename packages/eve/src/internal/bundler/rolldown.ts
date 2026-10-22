@@ -98,10 +98,17 @@ export async function parseWithRolldownAst(filename: string, sourceText: string)
  * code are dropped unless the caller supplies its own `onLog`, except
  * unresolved imports.
  */
-export async function buildWithRolldown(options: Record<string, unknown>): Promise<RolldownOutput> {
+export async function buildWithRolldown(
+  options: Record<string, unknown> & { readonly experimental?: Record<string, unknown> },
+): Promise<RolldownOutput> {
   assertCustomRolldownConditionNames(options);
   const { build } = await loadRolldown();
-  return await build({ onLog: onRolldownBuildLog, ...options });
+  return await build({
+    onLog: onRolldownBuildLog,
+    ...options,
+    // Debug module IDs contain temporary workspace paths and destabilize runtime fingerprints.
+    experimental: { ...options.experimental, attachDebugInfo: "none" },
+  });
 }
 
 // Unlike the Nitro host build, whose dependency graph deliberately leaves

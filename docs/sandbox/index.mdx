@@ -54,7 +54,7 @@ export default defineSandbox(() => environment.open());
 
 `environment.open()` starts the persistent sandbox owned by the current eve session. The `defineSandbox()` selector runs until initialization succeeds, then eve checkpoints the selected provider and its state. Later workflow steps and process restarts call the provider's `resume()` directly without rerunning the selector or `environment.open()`.
 
-Pass options for the live sandbox to `open()`, then configure the returned sandbox before returning it. This initialization runs once for a successfully started durable sandbox:
+Pass options for the live sandbox to `open()`, then configure the returned sandbox before returning it. `open()` applies its options only when it creates the sandbox. Initialization can run more than once against the same sandbox, for example when a subagent that shares the sandbox opens it before the parent does, when a [workflow step](/docs/tools/workflows#use-the-session-sandbox-in-a-step) opens it before the session records it, or on the next access after an initialization that failed. Make it safe to repeat:
 
 ```ts
 import { defineSandbox } from "eve/sandbox";
@@ -112,6 +112,8 @@ export default defineParentSandbox();
 ```
 
 An inheriting subagent cannot declare its own managed workspace or skill files.
+
+The parent and every subagent that shares its sandbox, including children of the built-in `agent` tool, use one sandbox keyed by the parent's session. Whichever session opens it first runs the parent's `defineSandbox()` selector to create it. When the parent session ends, eve deletes the sandbox, even one that only a subagent opened.
 
 ## Managed workspace and skills
 
@@ -182,16 +184,20 @@ export const AcmeSandbox = defineSandboxProvider<
   { image: string; prepare?: (sandbox: SandboxSession) => Promise<void> },
   { networkPolicy?: "allow-all" | "deny-all" },
   { templateId: string },
-  { remoteId: string; version: 1 },
+  { name: string; version: 1 },
   SandboxSession
 >({
   name: "acme",
   environment(options) {
     const client = createAcmeClient(options);
+    // The session key alone names the sandbox, so every caller finds the same one.
+    const sandboxName = (sessionId: string) => `eve-${sessionId}`;
 
     return {
-      async onSessionEnd(_ctx, _artifact, state, { reason }) {
-        await client.delete({ id: state.remoteId, reason });
+      async onSessionEnd(ctx, state, { reason }) {
+        // `state` is null when the session never recorded it, for example when
+        // only a subagent that shares the sandbox opened it.
+        await client.deleteIfExists({ name: state?.name ?? sandboxName(ctx.session.id), reason });
       },
 
       async prepare(ctx) {
@@ -205,19 +211,18 @@ export const AcmeSandbox = defineSandboxProvider<
       },
 
       async start(ctx, liveOptions, artifact) {
-        const remote = await client.open({
-          identity: sessionIdentity(ctx.session.id, artifact, liveOptions),
+        const name = sandboxName(ctx.session.id);
+        // Returns the sandbox with this name, or atomically creates it with these options.
+        const remote = await client.getOrCreate({
+          name,
           networkPolicy: liveOptions?.networkPolicy,
           templateId: artifact.templateId,
         });
-        return {
-          handle: createHandle(remote),
-          state: { remoteId: remote.id, version: 1 },
-        };
+        return { handle: createHandle(remote), state: { name, version: 1 } };
       },
 
       async resume(_ctx, artifact, state) {
-        const remote = await client.resume({ id: state.remoteId, templateId: artifact.templateId });
+        const remote = await client.resume({ name: state.name, templateId: artifact.templateId });
         return createHandle(remote);
       },
     };
@@ -225,13 +230,15 @@ export const AcmeSandbox = defineSandboxProvider<
 });
 ```
 
-`prepare()` returns the complete JSON-serializable artifact. Core calls `start()` once for a new durable sandbox session and persists its minimal JSON-compatible state. Process restarts call `resume()` with only the current context, that state, and the target deployment's exact artifact.
+`prepare()` returns the complete JSON-serializable artifact.
 
-`onSessionEnd()` is invoked when the durable session reaches a completed, expired, or failed terminal outcome. It receives the exact prepared artifact, persisted provider state, and a `reason` of `"completed"`, `"expired"`, or `"failed"`. Implement idempotent permanent cleanup from those values rather than depending on a live handle. eve retries the cleanup step and logs an exhausted failure without replacing the session's terminal outcome. A session that never opened a sandbox and a child that borrows its parent's sandbox do not call the hook.
+`start()` must be an idempotent upsert keyed by `ctx.session.id`: return the live sandbox for that key when one exists, and create it otherwise. eve can call `start()` for one key more than once, from different processes and deployments, and concurrently. A subagent that shares its parent's sandbox can open it before the parent does, and two processes can race to create it. Derive the sandbox's identity from the key, plus a provider-level namespace such as a project or account when names would otherwise collide. Never derive it from the open options or the artifact, which can differ between callers and deployments; apply them only when `start()` creates the sandbox. eve persists the minimal JSON-compatible state `start()` returns. Process restarts call `resume()` with only the current context, that state, and the target deployment's exact artifact.
 
-Provider handles implement `onSandboxStop()`, `onRuntimeShutdown()`, and `onSandboxDelete()`. These handle-level methods cover authored stop or delete calls, process shutdown, and failed initialization; `onSessionEnd()` is the single provider hook for durable terminal session cleanup.
+`onSessionEnd()` is required. eve calls it for every owning durable session that reaches a completed, expired, or failed terminal outcome, including sessions with no recorded sandbox state. A failed step or process loss can create a sandbox before its state is checkpointed, so the last checkpoint cannot establish that no sandbox exists. The hook receives the session context, the persisted provider state or `null`, and a `reason` of `"completed"`, `"expired"`, or `"failed"`. Delete whatever exists under `ctx.session.id` without depending on a live handle, and find it from the key when the state is `null`. The hook must succeed when nothing exists and must be idempotent: eve retries the cleanup step and logs an exhausted failure without replacing the session's terminal outcome. A subagent that shares its parent's sandbox does not call the hook, because cleanup belongs to the parent. An `invokeTool` call without a key also calls `onSessionEnd()` when the call ends if it requested sandbox access, including an initialization attempt that failed.
 
-Open options belong to `start()` and are not serialized or passed to `resume()`. A provider must put any immutable option-derived data needed for reconnection in its session state. With the current immutable-state contract, `resume()` reconnects existing native state and fails if it is gone rather than recreating callback side effects. A custom provider may define start-only callback fields, but built-in providers initialize the sandbox in `defineSandbox()` after `open()`.
+Provider handles implement `onSandboxStop()`, `onRuntimeShutdown()`, and `onSandboxDelete()`. These handle-level methods cover authored stop or delete calls and process shutdown; `onSessionEnd()` is the single provider hook for durable terminal session cleanup. eve does not delete a sandbox whose initialization failed: the next access runs the selector against it again, and session end removes it.
+
+Open options belong to `start()` and are not serialized or passed to `resume()`. A provider must put any immutable option-derived data needed for reconnection in its session state. With the current immutable-state contract, `resume()` reconnects existing native state and fails if it is gone rather than recreating callback side effects. When a built-in provider reports that the native sandbox is gone, eve clears the session's provider state and reruns the selector. A custom provider may define start-only callback fields, but built-in providers initialize the sandbox in `defineSandbox()` after `open()`.
 
 Preparation discovers authored files through `ctx.files`; core keeps project layout and artifact storage keys private. Keep provider SDK values behind the provider. `environment.open()` preserves the provider's sandbox capability type, while the heterogeneous runtime registry erases it to eve's common session surface.
 
@@ -247,9 +254,11 @@ Preparation discovers authored files through `ctx.files`; core keeps project lay
 
 ## Lifecycle
 
-Session-owned sandboxes persist across turns and deployments while their provider state remains available. `sandbox.stop()` stops compute without deleting persisted state; a later access resumes that state directly. `sandbox.delete()` clears provider state, so the next `ctx.getSandbox()` reruns the selector and starts a fresh sandbox from the current environment. When the durable session reaches a terminal outcome, eve calls the provider's `onSessionEnd()` hook to release any remaining session-owned resources.
+Session-owned sandboxes persist across turns and deployments while their provider state remains available. `sandbox.stop()` stops compute without deleting persisted state; a later access resumes that state directly. `sandbox.delete()` deletes the sandbox and clears provider state, so the next `ctx.getSandbox()` reruns the selector, and the provider starts a fresh sandbox under the same session key from the current environment. If the native sandbox is gone when a session resumes, for example after a local daemon restart, a removed container, or a deleted just-bash session directory, eve does the same: the session continues in a fresh sandbox, without the lost sandbox's files. When the durable session reaches a terminal outcome, eve calls the provider's `onSessionEnd()` hook to delete what remains under the session's key.
 
-Changing sandbox source, preparation code, Dockerfile content, environment options, workspace resources, or skills produces a new environment generation. Existing durable sessions retain their recorded sandbox state; new sessions use the current generation.
+Before that cleanup, session end ends the session's task runs, and each run resets the subagent sessions it opened. eve does not wait for those subagents to stop. A subagent step that is still running at that moment can open the sandbox again after cleanup, and eve does not remove a sandbox created that late.
+
+Changing sandbox source, preparation code, Dockerfile content, environment options, workspace resources, or skills produces a new environment generation. Existing durable sessions keep their sandbox, because its identity comes from the session key alone; new sessions use the current generation.
 
 ## What to read next
 

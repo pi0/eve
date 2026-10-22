@@ -193,7 +193,7 @@ describe.skipIf(process.platform === "win32")("connectMicrosandbox", () => {
     expect(metadataState.writeSessionMetadata).toHaveBeenLastCalledWith(
       "/tmp/eve-microsandbox-session/metadata.json",
       expect.objectContaining({
-        sandboxName: expect.stringMatching(/^eve-sbx-ses-/u),
+        sandboxName: runtime.createdSandboxName,
         stateSnapshotName: "eve-sbx-state-existing",
       }),
     );
@@ -645,6 +645,7 @@ function createMockMicrosandboxModule(
   options: { readonly snapshots?: readonly string[]; readonly status?: string } = {},
 ) {
   let createdFromSnapshot = "";
+  let createdSandboxName = "";
   const removedSnapshots: string[] = [];
   const oldHandle = {
     status: options.status ?? "running",
@@ -663,10 +664,12 @@ function createMockMicrosandboxModule(
   const module = {
     MicrosandboxError: class extends Error {},
     Sandbox: {
-      async get() {
+      async get(name: string) {
+        if (name !== "eve-sbx-ses-old") throw new Error(`sandbox ${name} not found`);
         return oldHandle;
       },
-      builder() {
+      builder(name: string) {
+        createdSandboxName = name;
         return createMockSandboxBuilder((fromSnapshot) => {
           createdFromSnapshot = fromSnapshot;
           return createMockMicrosandbox();
@@ -676,7 +679,7 @@ function createMockMicrosandboxModule(
     Snapshot: {
       async get(snapshotName: string) {
         if (!snapshots.has(snapshotName)) {
-          throw new Error(`snapshot store unavailable for ${snapshotName}`);
+          throw new Error(`snapshot not found: ${snapshotName}`);
         }
         return {};
       },
@@ -689,6 +692,9 @@ function createMockMicrosandboxModule(
   return {
     get createdFromSnapshot() {
       return createdFromSnapshot;
+    },
+    get createdSandboxName() {
+      return createdSandboxName;
     },
     module: module as never,
     removedSnapshots,

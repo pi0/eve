@@ -135,13 +135,15 @@ export interface SandboxProviderImplementation<
   Session extends SandboxSession = SandboxSession,
 > {
   /**
-   * Permanently releases resources owned by a durable session after its terminal outcome.
-   * Implementations must be idempotent because the cleanup step may retry.
+   * Permanently deletes the sandbox for `context.session.id` after the session's terminal
+   * outcome. `state` is what `start()` returned when the session recorded it, or `null` when
+   * the session never did, for example because a subagent that shares the sandbox opened it.
+   * Find the sandbox from the key when `state` is `null`. Must succeed when no sandbox exists
+   * and be idempotent, because the cleanup step may retry.
    */
-  onSessionEnd?(
+  onSessionEnd(
     context: SandboxProviderSessionContext,
-    artifact: Readonly<PreparedArtifact>,
-    state: Readonly<SessionState>,
+    state: Readonly<SessionState> | null,
     options: { readonly reason: "completed" | "expired" | "failed" },
   ): Promise<void>;
   prepare(context: SandboxProviderPrepareContext): Promise<PreparedArtifact>;
@@ -150,6 +152,13 @@ export interface SandboxProviderImplementation<
     artifact: Readonly<PreparedArtifact>,
     state: Readonly<SessionState>,
   ): Promise<SandboxProviderHandle<Session>>;
+  /**
+   * Returns the live sandbox for `context.session.id`, creating it when none exists. This
+   * must be an idempotent upsert on that key: repeated and concurrent calls, from any process
+   * or deployment, return the same sandbox while it exists. Derive the sandbox's identity
+   * from the key and a provider-level namespace only, never from `options` or `artifact`,
+   * which apply only when this call creates the sandbox.
+   */
   start(
     context: SandboxProviderSessionContext,
     options: Readonly<OpenOptions> | undefined,

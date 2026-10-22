@@ -30,7 +30,6 @@ ignoredOptionalDependencies:
 
 catalog:
   "@ai-sdk/anthropic": "^4.0.78"
-  "@ai-sdk/code-mode": "^1.0.94"
   "@ai-sdk/google": "^4.0.93"
   "@ai-sdk/mcp": "^2.0.73"
   "@ai-sdk/openai": "^4.0.91"

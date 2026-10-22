@@ -12,6 +12,7 @@ const provider = defineSandboxProvider<
   name: "test-provider",
   stateProtocolVersion: 4,
   environment: (environmentOptions) => ({
+    async onSessionEnd() {},
     async prepare() {
       return { templateId: environmentOptions?.image ?? "default" };
     },

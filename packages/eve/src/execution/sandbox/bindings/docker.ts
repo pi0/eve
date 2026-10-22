@@ -51,6 +51,7 @@ import {
   type SandboxProviderSessionContext,
 } from "#shared/sandbox-provider.js";
 import { SandboxTemplateNotProvisionedError } from "#shared/sandbox-template-error.js";
+import { SandboxSessionGoneError } from "#shared/sandbox-session-gone-error.js";
 import type {
   DockerSandboxEnvironmentOptions,
   DockerSandboxRuntimeOptions,
@@ -71,7 +72,6 @@ type DockerSandboxPreparedArtifact = {
 };
 type DockerSandboxSessionState = {
   readonly containerName: string;
-  readonly generation: string;
   readonly version: 2;
 };
 
@@ -119,7 +119,13 @@ export function createDockerSandboxProvider(
       "{{.State.Running}}",
       containerName,
     ]);
-    return inspect.exitCode === 0 ? inspect.stdout.trim() === "true" : undefined;
+    if (inspect.exitCode === 0) return inspect.stdout.trim() === "true";
+    if (/no such (?:container|object)/iu.test(inspect.stderr)) return undefined;
+    // Any other failure, such as a daemon that stopped after the cached check, must not
+    // read as a missing container: resume would discard the session's sandbox.
+    daemonCheck = undefined;
+    expectDockerSuccess(inspect, `inspect sandbox session container "${containerName}"`);
+    return undefined;
   }
 
   async function openDockerSession(
@@ -130,17 +136,19 @@ export function createDockerSandboxProvider(
     createIfMissing: boolean,
   ) {
     await ensureDaemon();
-    const artifact = requirePreparedDockerArtifact(artifactValue);
-    if (!(await dockerImageExists(cli, artifact.imageReference))) {
-      throw new SandboxTemplateNotProvisionedError({
-        providerName: DOCKER_PROVIDER_NAME,
-        templateKey: artifact.imageReference,
-      });
-    }
     let running = await inspectContainerRunning(containerName);
     if (running === undefined) {
       if (!createIfMissing) {
-        throw new Error(`Docker sandbox session container "${containerName}" no longer exists.`);
+        throw new SandboxSessionGoneError(
+          `Docker sandbox session container "${containerName}" no longer exists.`,
+        );
+      }
+      const artifact = requirePreparedDockerArtifact(artifactValue);
+      if (!(await dockerImageExists(cli, artifact.imageReference))) {
+        throw new SandboxTemplateNotProvisionedError({
+          providerName: DOCKER_PROVIDER_NAME,
+          templateKey: artifact.imageReference,
+        });
       }
       try {
         await startDockerContainer({
@@ -195,6 +203,14 @@ export function createDockerSandboxProvider(
   }
 
   return {
+    async onSessionEnd(context, state) {
+      await ensureDaemon();
+      const containerName = state?.containerName ?? dockerSessionName(context);
+      const removed = await cli.run(["rm", "-f", containerName]);
+      if (removed.exitCode !== 0 && !/no such container/iu.test(removed.stderr)) {
+        expectDockerSuccess(removed, `delete sandbox session container "${containerName}"`);
+      }
+    },
     async prepare(context) {
       context.log?.("checking Docker daemon");
       await ensureDaemon();
@@ -318,46 +334,29 @@ export function createDockerSandboxProvider(
     },
     async resume(context, artifactValue, stateValue) {
       const state = requireDockerSessionState(stateValue);
-      if (state.generation !== dockerGeneration(artifactValue, optionsHash)) {
-        throw new Error("Docker sandbox session state is incompatible with this environment.");
-      }
       return await openDockerSession(context, undefined, artifactValue, state.containerName, false);
     },
     async start(context, openOptions, artifactValue) {
-      const containerName = dockerSessionName(
-        context.session.id,
-        openOptions,
-        artifactValue,
-        optionsHash,
-      );
+      const containerName = dockerSessionName(context);
       return {
         handle: await openDockerSession(context, openOptions, artifactValue, containerName, true),
-        state: {
-          containerName,
-          generation: dockerGeneration(artifactValue, optionsHash),
-          version: 2,
-        },
+        state: { containerName, version: 2 },
       };
     },
   };
 }
 
-function dockerGeneration(artifact: SandboxPreparedArtifact, optionsHash: string): string {
-  return createSandboxProviderIdentity({ artifact, environment: optionsHash, version: 1 });
-}
-
-function dockerSessionName(
-  sessionId: string,
-  options: Readonly<DockerSandboxRuntimeOptions> | undefined,
-  artifact: SandboxPreparedArtifact,
-  optionsHash: string,
-): string {
+/**
+ * The session's container name. One Docker daemon serves every app on the
+ * host, so the app's storage path namespaces the session id. The template
+ * and open options apply only when the container is created, so a session
+ * keeps its container across rebuilds.
+ */
+function dockerSessionName(context: SandboxProviderSessionContext): string {
   return `eve-sbx-${createSandboxProviderIdentity({
-    artifact,
-    environment: optionsHash,
-    open: { networkPolicy: options?.networkPolicy },
-    sessionId,
-    version: 1,
+    namespace: context.storagePath,
+    sessionId: context.session.id,
+    version: 2,
   }).slice(0, 32)}`;
 }
 
@@ -374,12 +373,11 @@ function requireDockerSessionState(state: SandboxPreparedArtifact): DockerSandbo
   if (
     !isSandboxPreparedArtifactRecord(state) ||
     state.version !== 2 ||
-    typeof state.containerName !== "string" ||
-    typeof state.generation !== "string"
+    typeof state.containerName !== "string"
   ) {
     throw new Error("Invalid Docker sandbox session state.");
   }
-  return { containerName: state.containerName, generation: state.generation, version: 2 };
+  return { containerName: state.containerName, version: 2 };
 }
 
 async function resolveDockerHandleIdentity(cli: DockerCli, containerName: string): Promise<string> {

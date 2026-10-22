@@ -167,6 +167,7 @@ function createGraph(
   const provider = defineSandboxProvider({
     name: input.providerName ?? "test",
     environment: () => ({
+      async onSessionEnd() {},
       async prepare() {
         return null;
       },

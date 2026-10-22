@@ -20,7 +20,10 @@ import { resolveRuntimeAgentGraph } from "#runtime/resolve-agent-graph.js";
 import { createNodeHarnessTools } from "#execution/node-step.js";
 import { serializeInputSchema, serializeOutputSchema } from "#tools/schema.js";
 import { defineSandbox } from "#public/definitions/sandbox.js";
-import { defineSandboxProvider } from "#shared/sandbox-provider.js";
+import {
+  defineSandboxProvider,
+  type SandboxProviderSessionContext,
+} from "#shared/sandbox-provider.js";
 import {
   buildActiveSessionContext,
   type ActiveSessionInit,
@@ -115,6 +118,13 @@ export interface TestRuntime {
     tool: string | Pick<ResolvedToolDefinition, "name">,
     input: unknown,
   ): Promise<unknown>;
+  /** Session ids whose sandbox cleanup ran when the session ended, in order. */
+  readonly sandboxCleanups: readonly string[];
+  /**
+   * What happened to the sessions' sandboxes, in order, as `<event>:<session id>`:
+   * `definition` when `sandbox.ts` runs, then `start`, `resume`, or `delete`.
+   */
+  readonly sandboxEvents: readonly string[];
   /**
    * Clears the compiled-artifact snapshot, bundle cache, and sessions' sandboxes.
    * Tests that re-use a runtime across multiple assertions can call this to
@@ -140,10 +150,13 @@ const TEST_SANDBOX_PROVIDER_NAME = "eve-test-memory";
 /**
  * An in-memory sandbox provider that keeps each session's sandbox, so a step
  * that resumes it sees what earlier steps wrote, as with a real provider. A
- * staged attachment, say, is read back on the next model call.
+ * staged attachment, say, is read back on the next model call. `start` is an
+ * upsert on the session id, and session-end cleanup deletes by it.
  */
 function createTestSandboxProvider() {
   const sessionSandboxes = new Map<string, MockSandbox>();
+  const endedSessionIds: string[] = [];
+  const events: string[] = [];
 
   function createHandle(sessionId: string) {
     let sandbox = sessionSandboxes.get(sessionId);
@@ -155,6 +168,7 @@ function createTestSandboxProvider() {
     return {
       sandbox: opened.session,
       async onSandboxDelete(options?: import("#shared/sandbox-provider.js").SandboxDeleteOptions) {
+        events.push(`delete:${sessionId}`);
         sessionSandboxes.delete(sessionId);
         await opened.access.delete?.(options);
       },
@@ -166,18 +180,35 @@ function createTestSandboxProvider() {
   const provider = defineSandboxProvider({
     name: TEST_SANDBOX_PROVIDER_NAME,
     environment: () => ({
+      async onSessionEnd(context) {
+        endedSessionIds.push(context.session.id);
+        const sandbox = sessionSandboxes.get(context.session.id);
+        sessionSandboxes.delete(context.session.id);
+        await sandbox?.access.delete?.();
+      },
       async prepare() {
         return null;
       },
-      async resume(context) {
+      async resume(context: SandboxProviderSessionContext) {
+        events.push(`resume:${context.session.id}`);
         return createHandle(context.session.id);
       },
-      async start(context) {
+      async start(context: SandboxProviderSessionContext) {
+        events.push(`start:${context.session.id}`);
         return { handle: createHandle(context.session.id), state: null };
       },
     }),
   });
-  return { clear: () => sessionSandboxes.clear(), provider };
+  return {
+    clear: () => {
+      sessionSandboxes.clear();
+      endedSessionIds.length = 0;
+      events.length = 0;
+    },
+    endedSessionIds,
+    events,
+    provider,
+  };
 }
 
 export async function createTestRuntime(descriptor: TestAppDescriptor = {}): Promise<TestRuntime> {
@@ -191,7 +222,13 @@ export async function createTestRuntime(descriptor: TestAppDescriptor = {}): Pro
       {
         loadNamespace: async () => {
           const environment = sandboxes.provider.environment();
-          return { environment, default: defineSandbox(() => environment.open()) };
+          return {
+            environment,
+            default: defineSandbox(({ session }) => {
+              sandboxes.events.push(`definition:${session.id}`);
+              return environment.open();
+            }),
+          };
         },
         logicalPath: "sandbox.ts",
       },
@@ -284,6 +321,8 @@ export async function createTestRuntime(descriptor: TestAppDescriptor = {}): Pro
     reset,
     run,
     runAsSession,
+    sandboxCleanups: sandboxes.endedSessionIds,
+    sandboxEvents: sandboxes.events,
     session,
     tools,
   };

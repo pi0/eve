@@ -7,7 +7,11 @@ import { importConversation, readLegacySnapshot } from "#execution/legacy-sessio
 import { ensureSandboxAccess } from "#execution/sandbox/ensure.js";
 import { mockSandbox } from "#internal/testing/mocks/mock-sandbox.js";
 import { defineParentSandbox, defineSandbox } from "#public/definitions/sandbox.js";
-import { defineSandboxProvider } from "#shared/sandbox-provider.js";
+import {
+  defineSandboxProvider,
+  type SandboxProviderSessionContext,
+} from "#shared/sandbox-provider.js";
+import { SandboxSessionGoneError } from "#shared/sandbox-session-gone-error.js";
 import { createBundledRuntimeCompiledArtifactsSource } from "#runtime/compiled-artifacts-source.js";
 import type { RuntimeSandboxRegistry } from "#runtime/sandbox/registry.js";
 import { loadSandboxPreparedArtifact } from "#runtime/sandbox/prepared-artifacts.js";
@@ -16,8 +20,9 @@ vi.mock("#runtime/sandbox/prepared-artifacts.js", () => ({
   loadSandboxPreparedArtifact: vi.fn(async () => null),
 }));
 
-function fixture(setup?: () => void, returnCopy = false, onSessionEnd?: () => Promise<void>) {
+function fixture(setup?: () => void, returnCopy = false) {
   const deleteSandbox = vi.fn(async () => {});
+  const onSessionEnd = vi.fn(async () => {});
   const stopSandbox = vi.fn(async () => {});
   const shutdownSandbox = vi.fn(async () => {});
   const create = vi.fn(async () => {
@@ -29,19 +34,13 @@ function fixture(setup?: () => void, returnCopy = false, onSessionEnd?: () => Pr
       onSandboxStop: stopSandbox,
     };
   });
-  const start = vi.fn(async () => ({ handle: await create(), state: null }));
+  const start = vi.fn(async (context: SandboxProviderSessionContext) => ({
+    handle: await create(),
+    state: { key: context.session.id },
+  }));
   const provider = defineSandboxProvider({
     name: "test",
-    environment: () => {
-      const implementation = {
-        prepare: async () => null,
-        resume: create,
-        start,
-      };
-      return onSessionEnd === undefined
-        ? implementation
-        : Object.assign(implementation, { onSessionEnd });
-    },
+    environment: () => ({ onSessionEnd, prepare: async () => null, resume: create, start }),
   });
   const environment = provider.environment();
   const selector = defineSandbox(async () => {
@@ -73,6 +72,52 @@ function fixture(setup?: () => void, returnCopy = false, onSessionEnd?: () => Pr
     stopSandbox,
   };
 }
+/** A provider that honors the contract: `start` upserts on the session id, and cleanup deletes by it. */
+function upsertingFixture() {
+  const live = new Map<string, ReturnType<typeof mockSandbox>>();
+  const handle = (sessionId: string) => {
+    let sandbox = live.get(sessionId);
+    if (sandbox === undefined) {
+      sandbox = mockSandbox();
+      live.set(sessionId, sandbox);
+    }
+    return {
+      sandbox: sandbox.session,
+      onRuntimeShutdown: async () => {},
+      onSandboxDelete: async () => void live.delete(sessionId),
+      onSandboxStop: async () => {},
+    };
+  };
+  const environment = defineSandboxProvider({
+    name: "upserting",
+    environment: () => ({
+      onSessionEnd: async (context: SandboxProviderSessionContext) =>
+        void live.delete(context.session.id),
+      prepare: async () => null,
+      resume: async (context: SandboxProviderSessionContext) => handle(context.session.id),
+      start: async (context: SandboxProviderSessionContext) => ({
+        handle: handle(context.session.id),
+        state: null,
+      }),
+    }),
+  }).environment();
+  const registry: RuntimeSandboxRegistry = {
+    sandbox: {
+      definition: {
+        environment,
+        kind: "independent",
+        logicalPath: "sandbox.ts",
+        selector: defineSandbox(() => environment.open()),
+        revisionHash: "hash",
+        sourceId: "sandbox",
+        sourceKind: "module",
+      },
+      workspaceResourceRoot: { logicalPath: "", rootEntries: [] },
+    },
+  };
+  return { live, registry };
+}
+
 async function open(
   registry: RuntimeSandboxRegistry,
   id = "session-1",
@@ -155,6 +200,42 @@ describe("ensureSandboxAccess", () => {
     expect(value.create).toHaveBeenCalledOnce();
   });
 
+  // https://github.com/vercel/eve/issues/5113
+  it("starts a fresh sandbox when the persisted one is gone", async () => {
+    const setup = vi.fn();
+    const value = fixture(setup);
+    value.create.mockRejectedValueOnce(
+      new SandboxSessionGoneError('microsandbox session "ses_1" is no longer available to resume.'),
+    );
+    const { access, sandbox } = await open(value.registry, "session-1", {
+      session: { providerName: "test", state: null, stateProtocolVersion: 1 },
+    });
+    expect(sandbox).toBeTruthy();
+    expect(setup).toHaveBeenCalledOnce();
+    expect(value.start).toHaveBeenCalledOnce();
+    await expect(access.captureState()).resolves.toEqual({
+      session: { providerName: "test", state: { key: "session-1" }, stateProtocolVersion: 1 },
+    });
+  });
+
+  it("keeps the persisted sandbox when resume fails for another reason", async () => {
+    const value = fixture();
+    value.create.mockRejectedValueOnce(new Error("daemon unavailable"));
+    const state = {
+      session: { providerName: "test", state: { key: "old" }, stateProtocolVersion: 1 },
+    };
+    const access = await ensureSandboxAccess({
+      compiledArtifactsSource: createBundledRuntimeCompiledArtifactsSource(),
+      nodeId: "__root__",
+      registry: value.registry,
+      sessionId: "session-1",
+      state,
+    });
+    await expect(access.get()).rejects.toThrow("daemon unavailable");
+    expect(value.start).not.toHaveBeenCalled();
+    await expect(access.captureState()).resolves.toEqual(state);
+  });
+
   it("starts a fresh sandbox for a session imported from eve 0.54", async () => {
     const setup = vi.fn();
     const value = fixture(setup);
@@ -192,12 +273,18 @@ describe("ensureSandboxAccess", () => {
     expect(value.start).toHaveBeenCalledOnce();
   });
 
-  it("passes empty live options when a child inherits its parent sandbox", async () => {
-    const value = fixture();
+  it("runs the parent's selector when a child that inherits its sandbox opens it first", async () => {
+    const setup = vi.fn();
+    const value = fixture(setup);
 
-    await open(inheritingChildRegistry(value.registry));
+    await open(inheritingChildRegistry(value.registry), "parent-session", null, "child");
 
-    expect(value.create).toHaveBeenCalledOnce();
+    expect(setup).toHaveBeenCalledOnce();
+    expect(value.start).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ session: expect.objectContaining({ id: "parent-session" }) }),
+      undefined,
+      null,
+    );
   });
 
   it("rejects a fabricated sandbox", async () => {
@@ -232,7 +319,9 @@ describe("ensureSandboxAccess", () => {
     const [owner, subagent] = await Promise.all([open(value.registry), open(value.registry)]);
     expect(value.start).toHaveBeenCalledOnce();
     expect(value.create).toHaveBeenCalledTimes(2);
-    expect(await subagent.access.captureState()).toEqual(await owner.access.captureState());
+    expect((await subagent.access.captureState()).session).toEqual(
+      (await owner.access.captureState()).session,
+    );
   });
 
   it("shares the parent's start with a subagent that inherits its sandbox", async () => {
@@ -243,7 +332,9 @@ describe("ensureSandboxAccess", () => {
     ]);
     expect(value.start).toHaveBeenCalledOnce();
     expect(value.create).toHaveBeenCalledTimes(2);
-    expect(await subagent.access.captureState()).toEqual(await owner.access.captureState());
+    expect((await subagent.access.captureState()).session).toEqual(
+      (await owner.access.captureState()).session,
+    );
   });
 
   it("lets only one waiter retry after a shared start fails", async () => {
@@ -306,33 +397,48 @@ describe("ensureSandboxAccess", () => {
   });
 
   it("passes terminal cleanup to the provider from durable state", async () => {
-    const onSessionEnd = vi.fn(async () => {});
-    const value = fixture(undefined, false, onSessionEnd);
+    const value = fixture();
     const { access } = await open(value.registry);
 
-    await access.end?.("expired");
+    await access.end("expired");
 
-    expect(onSessionEnd).toHaveBeenCalledExactlyOnceWith(
+    expect(value.onSessionEnd).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ session: expect.objectContaining({ id: "session-1" }) }),
-      null,
-      null,
+      { key: "session-1" },
       { reason: "expired" },
     );
     expect(value.deleteSandbox).not.toHaveBeenCalled();
     await expect(access.captureState()).resolves.toEqual({ session: null });
   });
 
-  it("falls back to resumed handle deletion when the provider has no terminal hook", async () => {
-    const value = fixture();
-    const { access } = await open(value.registry);
+  it("removes a sandbox a sharing child opened when the parent session ends without opening it", async () => {
+    const value = upsertingFixture();
+    const child = await ensureSandboxAccess({
+      compiledArtifactsSource: createBundledRuntimeCompiledArtifactsSource(),
+      nodeId: "child",
+      ownsSandbox: false,
+      registry: inheritingChildRegistry(value.registry),
+      sessionId: "parent-session",
+      state: null,
+    });
+    await child.get();
+    await child.end("completed");
+    expect([...value.live.keys()]).toEqual(["parent-session"]);
 
-    await access.end?.("completed");
+    // The parent never opened the sandbox and has no checkpointed provider state.
+    const parent = await ensureSandboxAccess({
+      compiledArtifactsSource: createBundledRuntimeCompiledArtifactsSource(),
+      nodeId: "__root__",
+      registry: value.registry,
+      sessionId: "parent-session",
+      state: null,
+    });
+    await parent.end("completed");
 
-    expect(value.deleteSandbox).toHaveBeenCalledOnce();
-    await expect(access.captureState()).resolves.toEqual({ session: null });
+    expect(value.live.size).toBe(0);
   });
 
-  it("does not start a sandbox just to end a session that never opened one", async () => {
+  it("cleans up an unrecorded key at session end without starting a sandbox", async () => {
     const value = fixture();
     const access = await ensureSandboxAccess({
       compiledArtifactsSource: createBundledRuntimeCompiledArtifactsSource(),
@@ -342,15 +448,20 @@ describe("ensureSandboxAccess", () => {
       state: null,
     });
 
-    await access.end?.("expired");
+    await access.end("expired");
 
+    expect(value.onSessionEnd).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ session: expect.objectContaining({ id: "unused" }) }),
+      null,
+      { reason: "expired" },
+    );
     expect(value.start).not.toHaveBeenCalled();
     expect(value.create).not.toHaveBeenCalled();
   });
 
   it("does not end a sandbox borrowed from another session", async () => {
-    const onSessionEnd = vi.fn(async () => {});
-    const value = fixture(undefined, false, onSessionEnd);
+    const value = fixture();
+    const { onSessionEnd } = value;
     const access = await ensureSandboxAccess({
       compiledArtifactsSource: createBundledRuntimeCompiledArtifactsSource(),
       nodeId: "__root__",

@@ -27,6 +27,7 @@ import {
   type SandboxProviderSessionContext,
 } from "#shared/sandbox-provider.js";
 import { SandboxTemplateNotProvisionedError } from "#shared/sandbox-template-error.js";
+import { SandboxSessionGoneError } from "#shared/sandbox-session-gone-error.js";
 import type {
   VercelSandboxMountOptions,
   VercelSandboxRuntimeOptions,
@@ -61,6 +62,7 @@ import {
   isVercelSnapshotCreated,
 } from "#execution/sandbox/bindings/vercel-lookup.js";
 import {
+  deleteNamedVercelSandbox,
   deleteUnusableVercelSandbox,
   deleteVercelSandbox,
   stopVercelSandbox,
@@ -122,6 +124,7 @@ export function createVercelSandbox(
     (async () => await import("#compiled/@vercel/sandbox/index.js"));
   const createOptions: ResolvedVercelCreateOptions = {
     ...input.createOptions,
+    env: { ...SANDBOX_AGENT_ENV, ...input.createOptions?.env },
     timeout: input.createOptions?.timeout ?? DEFAULT_SANDBOX_TIMEOUT_MS,
   };
   const createSandbox = input.createSandbox ?? createVercelEveImageSandbox;
@@ -135,7 +138,11 @@ export function createVercelSandbox(
     const artifact = requirePreparedVercelTemplate(artifactValue);
     const { mounts, ...runtimeOptions } = options ?? {};
     const toolSession = isToolSessionId(context.session.id);
-    const authoredCreateOptions = { ...createOptions, ...runtimeOptions };
+    const authoredCreateOptions = {
+      ...createOptions,
+      ...runtimeOptions,
+      env: { ...SANDBOX_AGENT_ENV, ...(runtimeOptions.env ?? createOptions.env) },
+    };
     const sessionCreateOptions = toolSession
       ? withToolSessionRetention(authoredCreateOptions)
       : authoredCreateOptions;
@@ -207,6 +214,13 @@ export function createVercelSandbox(
   }
 
   const implementation: ReturnType<typeof createVercelSandbox> = {
+    async onSessionEnd(context, state) {
+      await deleteNamedVercelSandbox({
+        createOptions,
+        loadDeleteSandboxModule,
+        sandboxName: state?.sandboxName ?? vercelSessionName(context.session.id),
+      });
+    },
     async prepare(context) {
       const seedFiles = providerResourceTargetFiles(context.resources);
       if (
@@ -252,13 +266,15 @@ export function createVercelSandbox(
         sandboxName: state.sandboxName,
       });
       if (sandbox === null) {
-        throw new Error(`Vercel sandbox session "${state.sandboxName}" no longer exists.`);
+        throw new SandboxSessionGoneError(
+          `Vercel sandbox session "${state.sandboxName}" no longer exists.`,
+        );
       }
       await ensureVercelSandboxBaseRuntime(sandbox);
       return createHandle({ createOptions, loadDeleteSandboxModule, sandbox });
     },
     async start(context, options, artifact) {
-      const sandboxName = vercelSessionName(context.session.id, options, artifact, createOptions);
+      const sandboxName = vercelSessionName(context.session.id);
       const handle = await openSession(context, options, artifact, sandboxName);
       return {
         handle,
@@ -266,25 +282,18 @@ export function createVercelSandbox(
       };
     },
   };
-  // `start` finds a session's sandbox by name, so keyed tool sessions can reuse it.
+  // Saved filesystems expire, so a keyed tool session's sandbox is bounded.
   // A handle is only an SDK client, so a call that ends has nothing to free.
   return withToolSessionSandboxes(implementation);
 }
 
-function vercelSessionName(
-  sessionId: string,
-  options: Readonly<VercelSandboxRuntimeOptions> | undefined,
-  artifactValue: SandboxPreparedArtifact,
-  createOptions: VercelCreateOptions,
-): string {
-  const artifact = requirePreparedVercelTemplate(artifactValue);
-  return `eve-sbx-vercel-${createSandboxProviderIdentity({
-    artifact,
-    createOptions: vercelIdentityOptions(createOptions),
-    options: vercelIdentityOptions(options),
-    sessionId,
-    version: 1,
-  }).slice(0, 32)}`;
+/**
+ * The session's sandbox name. Sandbox names are unique within a Vercel
+ * project, so the session id alone keeps it stable across deployments and
+ * open options; those apply only when the sandbox is created.
+ */
+function vercelSessionName(sessionId: string): string {
+  return `eve-sbx-vercel-${createSandboxProviderIdentity({ sessionId, version: 2 }).slice(0, 32)}`;
 }
 
 function vercelIdentityOptions(options: object | undefined): object | undefined {
@@ -397,7 +406,7 @@ async function prepareTemplateSnapshot(
     await applyInitialVercelNetworkPolicy(sandbox, input.createOptions.networkPolicy);
 
     const templateSession = buildSandboxSession(
-      createVercelInternalSandboxSession(sandbox, input.createOptions.env),
+      createVercelInternalSandboxSession(sandbox),
       createVercelNetworkPolicySetter(sandbox),
     );
 
@@ -600,7 +609,7 @@ function createHandle(input: {
   return {
     sandbox: {
       ...buildSandboxSession(
-        createVercelInternalSandboxSession(sandbox, input.createOptions.env),
+        createVercelInternalSandboxSession(sandbox),
         createVercelNetworkPolicySetter(sandbox),
       ),
       name: sandbox.name,
@@ -626,11 +635,7 @@ function createHandle(input: {
   };
 }
 
-function createVercelInternalSandboxSession(
-  sandbox: VercelSandbox,
-  environmentEnv: Readonly<Record<string, string>> | undefined,
-): InternalSandboxSession {
-  const baseEnv = { ...SANDBOX_AGENT_ENV, ...environmentEnv };
+function createVercelInternalSandboxSession(sandbox: VercelSandbox): InternalSandboxSession {
   return {
     resolvePath: resolveVercelSandboxPath,
     async spawn(options: SandboxSpawnOptions): Promise<SandboxProcess> {
@@ -639,7 +644,7 @@ function createVercelInternalSandboxSession(
         cmd: "bash",
         cwd: options.workingDirectory ?? WORKSPACE_ROOT,
         detached: true,
-        env: { ...baseEnv, ...options.env },
+        env: options.env,
         signal: options.abortSignal,
       });
       return adaptMultiplexedCommandToSandboxProcess({
