@@ -44,7 +44,6 @@ import {
   createOptionalEngineDependencyPlugin,
   OPTIONAL_ENGINE_PACKAGES_BY_BACKEND_NAME,
 } from "#internal/nitro/host/optional-engine-dependency-plugin.js";
-import { addNitroRoutingImportSpecifierPlugin } from "#internal/nitro/host/nitro-routing-import-specifier-plugin.js";
 import { registerScheduleTaskHandlers } from "#internal/nitro/host/schedule-task-routes.js";
 import type {
   PreparedApplicationHost,
@@ -683,7 +682,6 @@ function configureSharedApplicationNitro(
   if (preparedHost.compiledArtifacts.instrumentationPluginPath !== undefined) {
     configureInstrumentationEntry(nitro, preparedHost.compiledArtifacts.instrumentationPluginPath);
   }
-  addNitroRoutingImportSpecifierPlugin(nitro);
   const workflowAliases = resolveWorkflowAliases();
   for (const [specifier, resolvedPath] of Object.entries(workflowAliases)) {
     nitro.options.alias[specifier] = resolvedPath;

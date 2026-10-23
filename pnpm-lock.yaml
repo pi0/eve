@@ -784,8 +784,8 @@ importers:
         specifier: workspace:*
         version: link:../../../packages/eve
       nitro:
-        specifier: npm:nitro-nightly@3.0.1-20261021-091307-2c35c25c
-        version: nitro-nightly@3.0.1-20261021-091307-2c35c25c
+        specifier: npm:nitro-nightly@3.0.1-20261023-050017-821b2e38
+        version: nitro-nightly@3.0.1-20261023-050017-821b2e38
       react:
         specifier: 'catalog:'
         version: 19.2.6
@@ -1778,8 +1778,8 @@ importers:
         specifier: ^3.0.0
         version: 3.29.0(@aws-sdk/credential-provider-web-identity@3.972.49)(supports-color@10.2.2)(zod@4.5.4)
       nitro:
-        specifier: npm:nitro-nightly@3.0.1-20261021-091307-2c35c25c
-        version: nitro-nightly@3.0.1-20261021-091307-2c35c25c
+        specifier: npm:nitro-nightly@3.0.1-20261023-050017-821b2e38
+        version: nitro-nightly@3.0.1-20261023-050017-821b2e38
       rolldown:
         specifier: 1.2.14
         version: 1.2.14
@@ -10840,8 +10840,8 @@ packages:
       crossws:
         optional: true
 
-  h3@2.0.7:
-    resolution: {integrity: sha512-00SVloxtViij9/JBsc/Ayd9H7GLXWB0KRfkReWG0dDwuUFKUKRrNGM3Csu+KZgppi5DD8Y1KpnfjtudWaRCoiQ==}
+  h3@2.0.8:
+    resolution: {integrity: sha512-ENuKlF9kC6E6PrvY1PUyE0qkrnnPTIt2/v48uyEEfTVfgoiqBCE0uwwf++2XrWwT1gxjQBDLQ8PAsmZVniKvTw==}
     engines: {node: '>=20.19.0'}
     hasBin: true
     peerDependencies:
@@ -12499,9 +12499,9 @@ packages:
   nice-grpc@2.1.17:
     resolution: {integrity: sha512-pu9xYPlWSeqoYQOCqb2ftQqZi/P2DaI70PSuwnxvoyIRiilaOVtktyPe6LmuXegWB4Ic1sPuDGCnCCASbwzK0w==}
 
-  nitro-nightly@3.0.1-20261021-091307-2c35c25c:
-    resolution: {integrity: sha512-b4BO7xecgX2IIU0831K7HEQ3rcE30/E2jnlTg8Bi4Qu5PfgfTfGT0Z3hOhIdoGC54EUZNlw32dDE9/aD+MTj8A==}
-    engines: {node: '>=22.12.0'}
+  nitro-nightly@3.0.1-20261023-050017-821b2e38:
+    resolution: {integrity: sha512-ye2RMXw78mapftzXRMthd6OKxOUYTZq8pxbN60z9jaHi77HmCHpmfGgxkvn3cj4QzykeMpHYw5a/akjRZFKgbg==}
+    engines: {node: '>=22.22.0'}
     hasBin: true
 
   nitro@3.0.260903-beta:
@@ -25590,7 +25590,7 @@ snapshots:
     optionalDependencies:
       crossws: 0.4.15(srvx@1.0.6)
 
-  h3@2.0.7(crossws@0.4.15(srvx@1.0.6))(ocache@0.3.1):
+  h3@2.0.8(crossws@0.4.15(srvx@1.0.6))(ocache@0.3.1):
     dependencies:
       rou3: 1.0.0
       srvx: 1.0.6
@@ -27676,11 +27676,11 @@ snapshots:
       abort-controller-x: 0.5.0
       nice-grpc-common: 2.0.4
 
-  nitro-nightly@3.0.1-20261021-091307-2c35c25c:
+  nitro-nightly@3.0.1-20261023-050017-821b2e38:
     dependencies:
       crossws: 0.4.15(srvx@1.0.6)
       env-runner: 0.3.7
-      h3: 2.0.7(crossws@0.4.15(srvx@1.0.6))(ocache@0.3.1)
+      h3: 2.0.8(crossws@0.4.15(srvx@1.0.6))(ocache@0.3.1)
       ocache: 0.3.1
       rou3: 1.0.0
       srvx: 1.0.6
@@ -27691,7 +27691,7 @@ snapshots:
       crossws: 0.4.15(srvx@1.0.6)
       db0: 0.4.1
       env-runner: 0.2.3
-      h3: 2.0.7(crossws@0.4.15(srvx@1.0.6))(ocache@0.3.1)
+      h3: 2.0.8(crossws@0.4.15(srvx@1.0.6))(ocache@0.3.1)
       hookable: 6.1.1
       nf3: 0.3.24
       ocache: 0.3.1

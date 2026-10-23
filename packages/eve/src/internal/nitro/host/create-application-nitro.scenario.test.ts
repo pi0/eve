@@ -573,59 +573,6 @@ describe("application Nitro creation", () => {
     }
   });
 
-  it("rewrites Windows paths in Nitro generated routing imports", async () => {
-    const nitroStub = createNitroStub();
-    createNitroMock.mockResolvedValueOnce(nitroStub.nitro);
-
-    const { createProductionApplicationNitro } = await import("./create-application-nitro.js");
-    const preparedHost = await createPreparedHost();
-    await createProductionApplicationNitro(preparedHost, createProductionOptions(preparedHost));
-
-    const buildConfigHooks = nitroStub.hookHandlers.get("build:config") ?? [];
-    const config = {
-      plugins: [],
-    };
-
-    for (const hook of buildConfigHooks) {
-      await hook(nitroStub.nitro, { builder: "rolldown", rolldown: config });
-    }
-
-    const routingImportPlugin = (
-      config.plugins as Array<{
-        name?: string;
-        transform?: (code: string, id: string) => unknown;
-      }>
-    ).find((plugin) => plugin.name === "eve:nitro-routing-import-specifiers");
-    if (routingImportPlugin?.transform === undefined) {
-      throw new Error("Expected Nitro routing import specifier plugin to be registered.");
-    }
-
-    expect(
-      routingImportPlugin.transform(
-        'import handler from "G:\\projects\\test-eve\\dist\\route.js";',
-        "#nitro/virtual/routing",
-      ),
-    ).toEqual({
-      code: 'import handler from "file:///G:/projects/test-eve/dist/route.js";',
-      map: null,
-    });
-    expect(
-      routingImportPlugin.transform(
-        'import meta from "G:\\projects\\test-eve\\dist\\route.js?meta";',
-        "#nitro/virtual/routing-meta",
-      ),
-    ).toEqual({
-      code: 'import meta from "file:///G:/projects/test-eve/dist/route.js?meta";',
-      map: null,
-    });
-    expect(
-      routingImportPlugin.transform(
-        'import handler from "G:\\projects\\test-eve\\dist\\route.js";',
-        "/tmp/other.js",
-      ),
-    ).toBeNull();
-  });
-
   it("includes configured hosted dependencies without tracing eve", async () => {
     const nitroStub = createNitroStub();
     createNitroMock.mockResolvedValueOnce(nitroStub.nitro);
