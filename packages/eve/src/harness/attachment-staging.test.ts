@@ -7,7 +7,6 @@ import { SandboxKey } from "#context/keys.js";
 import { decodeSandboxRef, isSandboxRefUrl } from "#internal/attachments/sandbox-refs.js";
 import { mockSandbox } from "#internal/testing/mocks/mock-sandbox.js";
 import {
-  ATTACHMENTS_ROOT,
   moveToolResultFilesToUserMessages,
   stageAttachmentsForAdapter,
   stageAttachmentsToSandbox,
@@ -87,9 +86,7 @@ describe("stageAttachmentsForAdapter", () => {
 
     expect(sandbox.writes).toHaveLength(1);
     const write = sandbox.writes[0];
-    expect(write?.path).toMatch(
-      new RegExp(`^${ATTACHMENTS_ROOT.replaceAll(".", "\\.")}/[0-9a-f]{16}/quarterly\\.csv$`),
-    );
+    expect(write?.path).toBe(ref.path);
     expect(write?.content).toEqual(data);
   });
 
@@ -355,7 +352,7 @@ function unresumableSandboxContext(): ContextContainer {
   ctx.set(SandboxKey, {
     captureState: async () => ({ session: null }),
     get: async () => {
-      throw new Error('microsandbox session "ses_1" is no longer available to resume.');
+      throw new Error('docker session "ses_1" is no longer available to resume.');
     },
     stop: async () => {},
   });

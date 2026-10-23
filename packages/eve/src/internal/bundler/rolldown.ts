@@ -1,6 +1,7 @@
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 
+import { createPseudoPackagePlugin } from "#internal/bundler/pseudo-packages.js";
 import {
   type BundlerDefaultLogHandler,
   onVendoredDependencyLog,
@@ -96,16 +97,21 @@ export async function parseWithRolldownAst(filename: string, sourceText: string)
  * bundle whose consumer expects one in-memory file; use this directly only
  * for multi-file, written-to-disk output. Warnings raised only by dependency
  * code are dropped unless the caller supplies its own `onLog`, except
- * unresolved imports.
+ * unresolved imports. Pseudo-packages such as `server-only` load as empty
+ * modules ahead of every caller plugin.
  */
 export async function buildWithRolldown(
-  options: Record<string, unknown> & { readonly experimental?: Record<string, unknown> },
+  options: Record<string, unknown> & {
+    readonly experimental?: Record<string, unknown>;
+    readonly plugins?: readonly unknown[];
+  },
 ): Promise<RolldownOutput> {
   assertCustomRolldownConditionNames(options);
   const { build } = await loadRolldown();
   return await build({
     onLog: onRolldownBuildLog,
     ...options,
+    plugins: [createPseudoPackagePlugin(), ...(options.plugins ?? [])],
     // Debug module IDs contain temporary workspace paths and destabilize runtime fingerprints.
     experimental: { ...options.experimental, attachDebugInfo: "none" },
   });

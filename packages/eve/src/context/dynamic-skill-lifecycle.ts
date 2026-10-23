@@ -86,6 +86,8 @@ function toDurableSkill(skill: MaterializableSkillPackage): DurableDynamicSkillM
   };
 }
 
+// The whole persisted record, including the generation `start()` sets: provider
+// state alone repeats when a gone sandbox is recreated under the same name.
 function sandboxIdentity(state: SandboxState): string | null {
   return state.session === null ? null : JSON.stringify(state.session);
 }
@@ -94,21 +96,30 @@ function sandboxIdentity(state: SandboxState): string | null {
  * Writes only packages with supporting files. Markdown-only skills are served
  * from durable context, so they never need a sandbox. A package is skipped when
  * its revision is unchanged and was written to the same persisted sandbox.
+ *
+ * Files are removed only when the session no longer has a dynamic skill by that
+ * name. A skill that stops returning supporting files keeps them, since the
+ * sandbox may already provide them, for example from its snapshot.
  */
 async function syncDynamicSkillFiles(input: {
   readonly ctx: ContextContainer;
+  /** Every dynamic skill the session keeps, with or without supporting files. */
+  readonly kept: ReadonlySet<string>;
   readonly previous: ReadonlyMap<string, string>;
   readonly next: ReadonlyMap<string, SandboxSkillPackage>;
 }): Promise<void> {
-  const { ctx, previous, next } = input;
-  if (previous.size === 0 && next.size === 0) return;
+  const { ctx, kept, previous, next } = input;
+  // The written record, not the manifest, finds withdrawn files: a skill that
+  // went markdown-only has no revision left, but its files are still there.
+  const written = ctx.get(DynamicSkillSandboxKey) ?? {};
+  const withdrawn = Object.keys(written).filter((name) => !kept.has(name));
+  if (withdrawn.length === 0 && next.size === 0) return;
 
   const access = ctx.require(SandboxKey);
-  const written = ctx.get(DynamicSkillSandboxKey) ?? {};
   const identity = sandboxIdentity(await access.captureState());
   const isWritten = (name: string) => identity !== null && written[name] === identity;
 
-  const stale = [...previous.keys()].filter((name) => !next.has(name) && isWritten(name));
+  const stale = withdrawn.filter(isWritten);
   const pending = [...next.values()].filter(
     ({ revision, skill }) => previous.get(skill.name) !== revision || !isWritten(skill.name),
   );
@@ -119,9 +130,7 @@ async function syncDynamicSkillFiles(input: {
 
   // Forget touched packages first so a failed write is never skipped later.
   const nextWritten = { ...written };
-  for (const name of previous.keys()) {
-    if (!next.has(name)) delete nextWritten[name];
-  }
+  for (const name of withdrawn) delete nextWritten[name];
   for (const { skill } of pending) delete nextWritten[skill.name];
   ctx.set(DynamicSkillSandboxKey, { ...nextWritten });
 
@@ -243,7 +252,7 @@ export async function dispatchDynamicSkillEvent(input: {
     }
   }
 
-  await syncDynamicSkillFiles({ ctx, next, previous });
+  await syncDynamicSkillFiles({ ctx, kept: new Set(dynamicSkillOwners.keys()), next, previous });
 
   ctx.set(DynamicSkillManifestKey, newManifest);
 }

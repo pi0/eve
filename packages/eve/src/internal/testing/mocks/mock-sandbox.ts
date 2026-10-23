@@ -10,8 +10,12 @@ import type {
   SandboxSpawnOptions,
   SandboxWriteBinaryFileOptions,
   SandboxWriteFileOptions,
+  SandboxWriteFilesOptions,
   SandboxWriteTextFileOptions,
 } from "#public/definitions/sandbox.js";
+import { posix } from "node:path";
+
+import type { SandboxConnection } from "#sandbox/provider.js";
 import type { SandboxNetworkPolicy } from "#shared/sandbox-network-policy.js";
 type NetworkPolicySandboxSession = SandboxSession & {
   readonly name: string;
@@ -19,6 +23,7 @@ type NetworkPolicySandboxSession = SandboxSession & {
 };
 import type { SandboxAccess, SandboxState } from "#sandbox/state.js";
 import { bufferToStream, streamToBuffer } from "#execution/sandbox/stream-utils.js";
+import { WORKSPACE_ROOT } from "#runtime/workspace/types.js";
 
 /**
  * Declarative description of a mock sandbox surface.
@@ -90,6 +95,8 @@ export interface MockSandbox {
    * want to call the session surface outside a `ctx` scope.
    */
   readonly session: NetworkPolicySandboxSession;
+  /** A provider connection over the same sandbox; its `stop` calls {@link MockSandboxInput.stop}. */
+  readonly connection: SandboxConnection<Pick<NetworkPolicySandboxSession, "setNetworkPolicy">>;
   /** Ordered log of every command received through `run`/`spawn`. */
   readonly commandLog: readonly string[];
   /** Ordered log of every path received through `removePath`. */
@@ -183,6 +190,18 @@ export function mockSandbox(input: MockSandboxInput = {}): MockSandbox {
     }
   }
 
+  async function writeBinaryFile(options: SandboxWriteBinaryFileOptions): Promise<void> {
+    const resolved = resolveWorkspacePath(options.path);
+    writes.push({ content: options.content, path: resolved });
+    const buf = Buffer.from(
+      options.content.buffer,
+      options.content.byteOffset,
+      options.content.byteLength,
+    );
+    files.set(resolved, buf.toString("utf8"));
+    fileBytes.set(resolved, buf);
+  }
+
   const baseSession: NetworkPolicySandboxSession = {
     name: input.name ?? "sbx_mock",
     resolvePath(path: string): string {
@@ -232,16 +251,9 @@ export function mockSandbox(input: MockSandboxInput = {}): MockSandbox {
       files.set(resolved, buf.toString("utf8"));
       fileBytes.set(resolved, buf);
     },
-    async writeBinaryFile(options: SandboxWriteBinaryFileOptions): Promise<void> {
-      const resolved = resolveWorkspacePath(options.path);
-      writes.push({ content: options.content, path: resolved });
-      const buf = Buffer.from(
-        options.content.buffer,
-        options.content.byteOffset,
-        options.content.byteLength,
-      );
-      files.set(resolved, buf.toString("utf8"));
-      fileBytes.set(resolved, buf);
+    writeBinaryFile,
+    async writeFiles(options: SandboxWriteFilesOptions): Promise<void> {
+      for (const file of options.files) await writeBinaryFile(file);
     },
     async writeTextFile(options: SandboxWriteTextFileOptions): Promise<void> {
       const resolved = resolveWorkspacePath(options.path);
@@ -251,6 +263,16 @@ export function mockSandbox(input: MockSandboxInput = {}): MockSandbox {
     },
   };
   const session = baseSession;
+  const connection: MockSandbox["connection"] = {
+    extensions: { setNetworkPolicy: session.setNetworkPolicy },
+    readFile: async ({ path }) => fileBytes.get(path) ?? null,
+    removePath,
+    spawn: session.spawn,
+    async stop() {
+      await input.stop?.();
+    },
+    writeFiles: session.writeFiles,
+  };
 
   const access: SandboxAccess = {
     async captureState(): Promise<SandboxState> {
@@ -270,6 +292,7 @@ export function mockSandbox(input: MockSandboxInput = {}): MockSandbox {
   return {
     access,
     commandLog,
+    connection,
     fileBytes,
     files,
     networkPolicyUpdates,
@@ -296,14 +319,6 @@ function synthesizeMockProcess(result: SandboxCommandResult): SandboxProcess {
   };
 }
 
-/**
- * Anchors a sandbox-relative path under `/workspace`, mirroring the real
- * backend contract documented on {@link SandboxSession.resolvePath}.
- */
 function resolveWorkspacePath(path: string): string {
-  if (path.startsWith("/")) {
-    return path;
-  }
-
-  return `/workspace/${path}`;
+  return posix.resolve(WORKSPACE_ROOT, path);
 }
