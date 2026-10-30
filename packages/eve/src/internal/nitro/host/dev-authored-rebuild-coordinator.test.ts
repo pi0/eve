@@ -101,14 +101,15 @@ function createHost(
 const createRunner: DevelopmentRunnerFactory = () => {
   let closed = false;
   const closedListeners = new Set<(cause?: unknown) => void>();
+  const close = async () => {
+    closed = true;
+    for (const listener of closedListeners) {
+      listener();
+    }
+    closedListeners.clear();
+  };
   return {
-    close: async () => {
-      closed = true;
-      for (const listener of closedListeners) {
-        listener();
-      }
-      closedListeners.clear();
-    },
+    close,
     get closed() {
       return closed;
     },
@@ -120,6 +121,7 @@ const createRunner: DevelopmentRunnerFactory = () => {
       }
       closedListeners.add(listener);
     },
+    shutdown: close,
     upgrade: async () => undefined,
     waitForReady: async () => undefined,
   };

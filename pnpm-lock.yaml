@@ -327,13 +327,13 @@ importers:
         version: 1.1.1(react@19.2.6)
       '@vercel/analytics':
         specifier: 2.0.1
-        version: 2.0.1(@sveltejs/kit@2.70.3(@opentelemetry/api@1.9.1)(@sveltejs/vite-plugin-svelte@7.3.0(svelte@5.57.0(@typescript-eslint/types@8.70.0))(vite@8.3.1(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))(svelte@5.57.0(@typescript-eslint/types@8.70.0))(typescript@6.0.3)(vite@8.3.1(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))(next@16.3.8(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(nuxt@4.5.2(7ab0669377eec22bf610e3e1d51bebd3))(react@19.2.6)(svelte@5.57.0(@typescript-eslint/types@8.70.0))(vue@3.5.42(typescript@6.0.3))
+        version: 2.0.1(@sveltejs/kit@2.70.3(@opentelemetry/api@1.9.1)(@sveltejs/vite-plugin-svelte@7.3.0(svelte@5.57.0(@typescript-eslint/types@8.70.0))(vite@8.3.1(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))(svelte@5.57.0(@typescript-eslint/types@8.70.0))(typescript@6.0.3)(vite@8.3.1(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))(next@16.3.8(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(nuxt@4.5.2(c3d32fded07662abe7c9346ae978c7f4))(react@19.2.6)(svelte@5.57.0(@typescript-eslint/types@8.70.0))(vue@3.5.42(typescript@6.0.3))
       '@vercel/geistdocs':
         specifier: 2.14.1
         version: 2.14.1(7eb82b335cccccda73811972c8fed49f)
       '@vercel/speed-insights':
         specifier: 2.0.0
-        version: 2.0.0(@sveltejs/kit@2.70.3(@opentelemetry/api@1.9.1)(@sveltejs/vite-plugin-svelte@7.3.0(svelte@5.57.0(@typescript-eslint/types@8.70.0))(vite@8.3.1(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))(svelte@5.57.0(@typescript-eslint/types@8.70.0))(typescript@6.0.3)(vite@8.3.1(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))(next@16.3.8(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(nuxt@4.5.2(7ab0669377eec22bf610e3e1d51bebd3))(react@19.2.6)(svelte@5.57.0(@typescript-eslint/types@8.70.0))(vue@3.5.42(typescript@6.0.3))
+        version: 2.0.0(@sveltejs/kit@2.70.3(@opentelemetry/api@1.9.1)(@sveltejs/vite-plugin-svelte@7.3.0(svelte@5.57.0(@typescript-eslint/types@8.70.0))(vite@8.3.1(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))(svelte@5.57.0(@typescript-eslint/types@8.70.0))(typescript@6.0.3)(vite@8.3.1(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))(next@16.3.8(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(nuxt@4.5.2(c3d32fded07662abe7c9346ae978c7f4))(react@19.2.6)(svelte@5.57.0(@typescript-eslint/types@8.70.0))(vue@3.5.42(typescript@6.0.3))
       '@vgpu/core':
         specifier: 0.0.7
         version: 0.0.7
@@ -1917,8 +1917,8 @@ importers:
         specifier: 0.6.0
         version: 0.6.0
       env-runner:
-        specifier: 0.1.16
-        version: 0.1.16(@vercel/queue@0.5.1(@opentelemetry/api@1.9.1))
+        specifier: 0.3.10
+        version: 0.3.10
       eventsource-parser:
         specifier: 3.1.0
         version: 3.1.0
@@ -9747,24 +9747,6 @@ packages:
   env-paths@3.0.0:
     resolution: {integrity: sha512-dtJUTepzMW3Lm/NPxRf3wP4642UWhjL2sQxc+ym2YMj1m/H2zDNQOlezafzkHwn6sMstjHTwG6iQQsctDW/b1A==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
-
-  env-runner@0.1.16:
-    resolution: {integrity: sha512-2LRJM4P2KLX6J83QZZrMqvgCDt/D5ea7wPcI3yYiy5cG/9rX5QwdwZFx0D7ktWnjdRyZxYjttGGorb5nFqb1CA==}
-    hasBin: true
-    peerDependencies:
-      '@netlify/runtime': ^4.1.23
-      '@vercel/queue': '>=0.2.0'
-      miniflare: ^4.20260515.0
-      wrangler: ^4.0.0
-    peerDependenciesMeta:
-      '@netlify/runtime':
-        optional: true
-      '@vercel/queue':
-        optional: true
-      miniflare:
-        optional: true
-      wrangler:
-        optional: true
 
   env-runner@0.3.10:
     resolution: {integrity: sha512-DOmiJsUH4gUIdLIvTZhO0UmXSPTM6pQbU7hdBt9rfHZQuUaXtGrGOXyL+zfCWuV972q1eF0wjiaVbCjhRM3WeQ==}
@@ -17767,7 +17749,7 @@ snapshots:
       - webpack
       - xml2js
 
-  '@nuxt/nitro-server@4.5.2(6ed7bee247af83613b46535d9b937a58)':
+  '@nuxt/nitro-server@4.5.2(9fcdc8b9ce62408dae8eed1079582506)':
     dependencies:
       '@nuxt/devalue': 2.0.2
       '@nuxt/kit': 4.5.2(magic-string@1.4.1)(magicast@0.5.5)(rolldown@1.2.15)(unplugin@3.3.0(esbuild@0.28.2)(rolldown@1.2.15)(rollup@4.63.3)(vite@8.3.1(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))
@@ -17786,7 +17768,7 @@ snapshots:
       mocked-exports: 0.1.1
       nitropack: 2.13.4(@upstash/redis@1.38.4)(@vercel/blob@2.8.2)(@vercel/functions@3.9.8(@aws-sdk/credential-provider-web-identity@3.972.49)(ws@8.21.3(bufferutil@4.1.0)))(aws4fetch@1.0.20)(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(@upstash/redis@1.38.4)(pg@8.20.0)(sql.js@1.14.2))(rolldown@1.2.15)(srvx@1.0.8)(supports-color@10.2.2)(vite@8.3.1(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1))
       nostics: 1.2.0
-      nuxt: 4.5.2(7ab0669377eec22bf610e3e1d51bebd3)
+      nuxt: 4.5.2(c3d32fded07662abe7c9346ae978c7f4)
       nypm: 0.6.10
       ohash: 2.0.12
       pathe: 2.0.3
@@ -17940,7 +17922,7 @@ snapshots:
       - webpack
       - yaml
 
-  '@nuxt/vite-builder@4.5.2(@babel/plugin-syntax-jsx@7.29.7(@babel/core@7.29.7(supports-color@10.2.2)))(@types/node@26.6.5)(esbuild@0.28.2)(eslint@10.4.0(jiti@2.7.0)(supports-color@10.2.2))(magic-string@1.4.1)(magicast@0.5.5)(nuxt@4.5.2(7ab0669377eec22bf610e3e1d51bebd3))(optionator@0.9.4)(oxlint@1.89.0)(rolldown@1.2.15)(rollup-plugin-visualizer@7.1.1(rolldown@1.2.15)(rollup@4.63.3))(rollup@4.63.3)(supports-color@10.2.2)(terser@5.51.2)(tsx@4.23.13)(typescript@6.0.3)(vue@3.5.42(typescript@6.0.3))(yaml@2.9.1)':
+  '@nuxt/vite-builder@4.5.2(@babel/plugin-syntax-jsx@7.29.7(@babel/core@7.29.7(supports-color@10.2.2)))(@types/node@26.6.5)(esbuild@0.28.2)(eslint@10.4.0(jiti@2.7.0)(supports-color@10.2.2))(magic-string@1.4.1)(magicast@0.5.5)(nuxt@4.5.2(c3d32fded07662abe7c9346ae978c7f4))(optionator@0.9.4)(oxlint@1.89.0)(rolldown@1.2.15)(rollup-plugin-visualizer@7.1.1(rolldown@1.2.15)(rollup@4.63.3))(rollup@4.63.3)(supports-color@10.2.2)(terser@5.51.2)(tsx@4.23.13)(typescript@6.0.3)(vue-tsc@3.3.6(typescript@6.0.3))(vue@3.5.42(typescript@6.0.3))(yaml@2.9.1)':
     dependencies:
       '@nuxt/kit': 4.5.2(magic-string@1.4.1)(magicast@0.5.5)(rolldown@1.2.15)(unplugin@3.3.0(esbuild@0.28.2)(rolldown@1.2.15)(rollup@4.63.3)(vite@8.3.1(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))
       '@vitejs/plugin-vue': 6.0.9(vite@8.3.1(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1))(vue@3.5.42(typescript@6.0.3))
@@ -17958,7 +17940,7 @@ snapshots:
       knitwork: 1.3.0
       mlly: 1.8.2
       mocked-exports: 0.1.1
-      nuxt: 4.5.2(7ab0669377eec22bf610e3e1d51bebd3)
+      nuxt: 4.5.2(c3d32fded07662abe7c9346ae978c7f4)
       nypm: 0.6.10
       pathe: 2.0.3
       pkg-types: 2.3.3
@@ -21594,11 +21576,11 @@ snapshots:
       h3: 1.15.11
       next: 16.3.8(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
 
-  '@vercel/analytics@2.0.1(@sveltejs/kit@2.70.3(@opentelemetry/api@1.9.1)(@sveltejs/vite-plugin-svelte@7.3.0(svelte@5.57.0(@typescript-eslint/types@8.70.0))(vite@8.3.1(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))(svelte@5.57.0(@typescript-eslint/types@8.70.0))(typescript@6.0.3)(vite@8.3.1(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))(next@16.3.8(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(nuxt@4.5.2(7ab0669377eec22bf610e3e1d51bebd3))(react@19.2.6)(svelte@5.57.0(@typescript-eslint/types@8.70.0))(vue@3.5.42(typescript@6.0.3))':
+  '@vercel/analytics@2.0.1(@sveltejs/kit@2.70.3(@opentelemetry/api@1.9.1)(@sveltejs/vite-plugin-svelte@7.3.0(svelte@5.57.0(@typescript-eslint/types@8.70.0))(vite@8.3.1(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))(svelte@5.57.0(@typescript-eslint/types@8.70.0))(typescript@6.0.3)(vite@8.3.1(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))(next@16.3.8(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(nuxt@4.5.2(c3d32fded07662abe7c9346ae978c7f4))(react@19.2.6)(svelte@5.57.0(@typescript-eslint/types@8.70.0))(vue@3.5.42(typescript@6.0.3))':
     optionalDependencies:
       '@sveltejs/kit': 2.70.3(@opentelemetry/api@1.9.1)(@sveltejs/vite-plugin-svelte@7.3.0(svelte@5.57.0(@typescript-eslint/types@8.70.0))(vite@8.3.1(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))(svelte@5.57.0(@typescript-eslint/types@8.70.0))(typescript@6.0.3)(vite@8.3.1(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1))
       next: 16.3.8(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      nuxt: 4.5.2(7ab0669377eec22bf610e3e1d51bebd3)
+      nuxt: 4.5.2(c3d32fded07662abe7c9346ae978c7f4)
       react: 19.2.6
       svelte: 5.57.0(@typescript-eslint/types@8.70.0)
       vue: 3.5.42(typescript@6.0.3)
@@ -21910,11 +21892,11 @@ snapshots:
     dependencies:
       zod: 4.5.4
 
-  '@vercel/speed-insights@2.0.0(@sveltejs/kit@2.70.3(@opentelemetry/api@1.9.1)(@sveltejs/vite-plugin-svelte@7.3.0(svelte@5.57.0(@typescript-eslint/types@8.70.0))(vite@8.3.1(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))(svelte@5.57.0(@typescript-eslint/types@8.70.0))(typescript@6.0.3)(vite@8.3.1(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))(next@16.3.8(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(nuxt@4.5.2(7ab0669377eec22bf610e3e1d51bebd3))(react@19.2.6)(svelte@5.57.0(@typescript-eslint/types@8.70.0))(vue@3.5.42(typescript@6.0.3))':
+  '@vercel/speed-insights@2.0.0(@sveltejs/kit@2.70.3(@opentelemetry/api@1.9.1)(@sveltejs/vite-plugin-svelte@7.3.0(svelte@5.57.0(@typescript-eslint/types@8.70.0))(vite@8.3.1(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))(svelte@5.57.0(@typescript-eslint/types@8.70.0))(typescript@6.0.3)(vite@8.3.1(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))(next@16.3.8(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(nuxt@4.5.2(c3d32fded07662abe7c9346ae978c7f4))(react@19.2.6)(svelte@5.57.0(@typescript-eslint/types@8.70.0))(vue@3.5.42(typescript@6.0.3))':
     optionalDependencies:
       '@sveltejs/kit': 2.70.3(@opentelemetry/api@1.9.1)(@sveltejs/vite-plugin-svelte@7.3.0(svelte@5.57.0(@typescript-eslint/types@8.70.0))(vite@8.3.1(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))(svelte@5.57.0(@typescript-eslint/types@8.70.0))(typescript@6.0.3)(vite@8.3.1(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1))
       next: 16.3.8(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      nuxt: 4.5.2(7ab0669377eec22bf610e3e1d51bebd3)
+      nuxt: 4.5.2(c3d32fded07662abe7c9346ae978c7f4)
       react: 19.2.6
       svelte: 5.57.0(@typescript-eslint/types@8.70.0)
       vue: 3.5.42(typescript@6.0.3)
@@ -23835,15 +23817,6 @@ snapshots:
   env-paths@2.2.1: {}
 
   env-paths@3.0.0: {}
-
-  env-runner@0.1.16(@vercel/queue@0.5.1(@opentelemetry/api@1.9.1)):
-    dependencies:
-      crossws: 0.4.17(srvx@0.11.22)
-      exsolve: 1.1.1
-      httpxy: 0.5.5
-      srvx: 0.11.22
-    optionalDependencies:
-      '@vercel/queue': 0.5.1(@opentelemetry/api@1.9.1)
 
   env-runner@0.3.10:
     dependencies:
@@ -27649,16 +27622,16 @@ snapshots:
       - xml2js
       - yaml
 
-  nuxt@4.5.2(7ab0669377eec22bf610e3e1d51bebd3):
+  nuxt@4.5.2(c3d32fded07662abe7c9346ae978c7f4):
     dependencies:
       '@dxup/nuxt': 0.5.10(esbuild@0.28.2)(magicast@0.5.5)(rolldown@1.2.15)(rollup@4.63.3)(vite@8.3.1(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1))
       '@nuxt/cli': 3.37.0(@nuxt/schema@4.5.2)(commander@14.0.3)(magicast@0.5.5)(supports-color@10.2.2)
       '@nuxt/devtools': 3.4.2(@upstash/redis@1.38.4)(@vercel/blob@2.8.2)(@vercel/functions@3.9.8(@aws-sdk/credential-provider-web-identity@3.972.49)(ws@8.21.3(bufferutil@4.1.0)))(aws4fetch@1.0.20)(bufferutil@4.1.0)(db0@0.3.4(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(@upstash/redis@1.38.4)(pg@8.20.0)(sql.js@1.14.2)))(ioredis@5.11.1(supports-color@10.2.2))(magic-string@1.4.1)(rolldown@1.2.15)(supports-color@10.2.2)(unplugin@3.3.0(esbuild@0.28.2)(rolldown@1.2.15)(rollup@4.63.3)(vite@8.3.1(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))(vite@8.3.1(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1))(vue@3.5.42(typescript@6.0.3))
       '@nuxt/kit': 4.5.2(magic-string@1.4.1)(magicast@0.5.5)(rolldown@1.2.15)(unplugin@3.3.0(esbuild@0.28.2)(rolldown@1.2.15)(rollup@4.63.3)(vite@8.3.1(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1)))
-      '@nuxt/nitro-server': 4.5.2(6ed7bee247af83613b46535d9b937a58)
+      '@nuxt/nitro-server': 4.5.2(9fcdc8b9ce62408dae8eed1079582506)
       '@nuxt/schema': 4.5.2
       '@nuxt/telemetry': 2.9.1(@nuxt/kit@4.5.2(magic-string@1.4.1)(magicast@0.5.5)(rolldown@1.2.15)(unplugin@3.3.0(esbuild@0.28.2)(rolldown@1.2.15)(rollup@4.63.3)(vite@8.3.1(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1))))
-      '@nuxt/vite-builder': 4.5.2(@babel/plugin-syntax-jsx@7.29.7(@babel/core@7.29.7(supports-color@10.2.2)))(@types/node@26.6.5)(esbuild@0.28.2)(eslint@10.4.0(jiti@2.7.0)(supports-color@10.2.2))(magic-string@1.4.1)(magicast@0.5.5)(nuxt@4.5.2(7ab0669377eec22bf610e3e1d51bebd3))(optionator@0.9.4)(oxlint@1.89.0)(rolldown@1.2.15)(rollup-plugin-visualizer@7.1.1(rolldown@1.2.15)(rollup@4.63.3))(rollup@4.63.3)(supports-color@10.2.2)(terser@5.51.2)(tsx@4.23.13)(typescript@6.0.3)(vue@3.5.42(typescript@6.0.3))(yaml@2.9.1)
+      '@nuxt/vite-builder': 4.5.2(@babel/plugin-syntax-jsx@7.29.7(@babel/core@7.29.7(supports-color@10.2.2)))(@types/node@26.6.5)(esbuild@0.28.2)(eslint@10.4.0(jiti@2.7.0)(supports-color@10.2.2))(magic-string@1.4.1)(magicast@0.5.5)(nuxt@4.5.2(c3d32fded07662abe7c9346ae978c7f4))(optionator@0.9.4)(oxlint@1.89.0)(rolldown@1.2.15)(rollup-plugin-visualizer@7.1.1(rolldown@1.2.15)(rollup@4.63.3))(rollup@4.63.3)(supports-color@10.2.2)(terser@5.51.2)(tsx@4.23.13)(typescript@6.0.3)(vue-tsc@3.3.6(typescript@6.0.3))(vue@3.5.42(typescript@6.0.3))(yaml@2.9.1)
       '@unhead/vue': 3.4.1(@oxc-project/types@0.155.0)(esbuild@0.28.2)(lightningcss@1.33.0)(rolldown@1.2.15)(rollup@4.63.3)(vite@8.3.1(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)(yaml@2.9.1))(vue@3.5.42(typescript@6.0.3))
       '@vue/shared': 3.5.42
       chokidar: 5.0.0

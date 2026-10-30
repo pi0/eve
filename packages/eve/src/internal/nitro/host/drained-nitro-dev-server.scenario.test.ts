@@ -71,6 +71,7 @@ function createRunnerFactory(
         }
         closedListeners.add(listener);
       },
+      shutdown: closeMock,
       upgrade: vi.fn(async () => undefined),
       waitForReady: vi.fn(async () => await readiness(runnerIndex)),
     };

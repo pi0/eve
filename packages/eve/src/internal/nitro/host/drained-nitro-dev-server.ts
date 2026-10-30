@@ -62,11 +62,15 @@ interface DevServerLogger {
  * Development server with drained worker replacement: `replaceWorker` swaps
  * to a ready candidate while the retired worker keeps serving the responses
  * and sockets it already admitted — without bound, a streaming turn can hold
- * one for minutes — and is terminated once its last exchange settles. Stock
- * Nitro's dev server terminates the previous worker as soon as the next one
- * attaches, which resets admitted work; this class exists solely to close
- * that gap and is intended to be deleted in favor of `createDevServer` once
- * equivalent drain semantics are available upstream.
+ * one for minutes — and is shut down once its last exchange settles.
+ *
+ * Nitro's `createDevServer` can't replace it: it needs a Nitro instance, which
+ * the parent process never loads, and it swaps before the next worker is ready.
+ *
+ * TODO: Let env-runner's `RunnerManager.reload(runner, { drain: { timeout: Infinity } })`
+ * do the exchange counting and draining here (unjs/env-runner#92, the
+ * mechanism behind Nitro's `devServer.drain`), keeping the readiness gate,
+ * spare workers, workspace disposal, and control routes in this class.
  */
 export class DrainedNitroDevServer {
   readonly #createRunner: DevelopmentRunnerFactory;
@@ -376,6 +380,11 @@ export class DrainedNitroDevServer {
 
     const listeners = [...this.#listeners];
     const listenerClosePromises = listeners.map((listener) => listener.beginClose());
+    // Aborts proxied exchanges first, so a worker's graceful shutdown doesn't
+    // wait on responses no client will read.
+    for (const listener of listeners) {
+      listener.destroySockets();
+    }
 
     const slots = [this.#active, this.#spare?.slot, ...this.#draining].filter(
       (slot): slot is RunnerSlot => slot !== undefined,
@@ -390,9 +399,6 @@ export class DrainedNitroDevServer {
       await this.#disposeHost(currentHost);
     }
 
-    for (const listener of listeners) {
-      listener.destroySockets();
-    }
     await Promise.all(listenerClosePromises);
   }
 
@@ -402,7 +408,7 @@ export class DrainedNitroDevServer {
   }
 
   async #releaseSlotOnce(slot: RunnerSlot): Promise<void> {
-    await slot.runner.close().catch(() => undefined);
+    await slot.runner.shutdown().catch(() => undefined);
     slot.host.runners -= 1;
     if (slot.host.runners === 0 && slot.host !== this.#currentHost) {
       await this.#disposeHost(slot.host);

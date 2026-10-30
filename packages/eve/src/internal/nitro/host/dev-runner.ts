@@ -3,14 +3,18 @@ import { Worker } from "node:worker_threads";
 
 import { BaseEnvRunner } from "#compiled/env-runner/index.js";
 import { resolvePackageCompiledFilePath } from "#internal/application/package.js";
+import { toErrorMessage } from "#shared/errors.js";
 
 const DEVELOPMENT_WORKER_SHUTDOWN_TIMEOUT_MS = 15_000;
 
 export interface DevelopmentRunner {
   readonly closed: boolean;
+  /** Terminates the worker right away. */
   close(cause?: unknown): Promise<void>;
   fetch(request: Request, init?: RequestInit): Promise<Response>;
   onceClosed(listener: (cause?: unknown) => void): void;
+  /** Lets the worker run its close hooks before it is terminated. */
+  shutdown(): Promise<void>;
   upgrade(input: {
     readonly node: {
       readonly head: Buffer;
@@ -29,12 +33,11 @@ export interface DevelopmentRunnerInput {
 
 export type DevelopmentRunnerFactory = (input: DevelopmentRunnerInput) => DevelopmentRunner;
 
+// env-runner's own `NodeWorkerEnvRunner` resolves its worker entry through
+// `import.meta.resolve("env-runner/...")`, which fails from eve's vendored copy.
 class NodeDevelopmentRunner extends BaseEnvRunner implements DevelopmentRunner {
-  #closeCause: unknown;
   readonly #closedListeners = new Set<(cause?: unknown) => void>();
   #worker: Worker | undefined;
-  #workerExit: Promise<void> | undefined;
-  #workerHasExited = false;
 
   constructor(input: DevelopmentRunnerInput) {
     const workerEntry = resolvePackageCompiledFilePath("src/compiled/env-runner/node-worker.js");
@@ -60,7 +63,7 @@ class NodeDevelopmentRunner extends BaseEnvRunner implements DevelopmentRunner {
 
   onceClosed(listener: (cause?: unknown) => void): void {
     if (this.closed) {
-      listener(this.#closeCause);
+      listener(this._closeCause);
       return;
     }
     this.#closedListeners.add(listener);
@@ -73,16 +76,20 @@ class NodeDevelopmentRunner extends BaseEnvRunner implements DevelopmentRunner {
     this.#worker.postMessage(message);
   }
 
+  override async shutdown(): Promise<void> {
+    await super.shutdown(DEVELOPMENT_WORKER_SHUTDOWN_TIMEOUT_MS);
+  }
+
   override async waitForReady(timeout: number): Promise<void> {
     try {
       await super.waitForReady(timeout);
     } catch (error) {
-      if (this.#closeCause === undefined) {
+      if (this._closeCause === undefined) {
         throw error;
       }
       throw new Error(
-        `Development worker failed before readiness: ${this.#closeCause instanceof Error ? this.#closeCause.message : String(this.#closeCause)}`,
-        { cause: this.#closeCause },
+        `Development worker failed before readiness: ${toErrorMessage(this._closeCause)}`,
+        { cause: this._closeCause },
       );
     }
   }
@@ -97,40 +104,14 @@ class NodeDevelopmentRunner extends BaseEnvRunner implements DevelopmentRunner {
 
   protected override async _closeRuntime(): Promise<void> {
     const worker = this.#worker;
-    if (worker === undefined) {
-      return;
-    }
-
-    const workerExit = this.#workerExit;
     this.#worker = undefined;
-    this.#workerExit = undefined;
-
-    try {
-      if (!this.#workerHasExited) {
-        worker.postMessage({ event: "shutdown" });
-      }
-      if (
-        !this.#workerHasExited &&
-        workerExit !== undefined &&
-        !(await waitForWorkerExit(workerExit))
-      ) {
-        await worker.terminate();
-      }
-    } finally {
-      worker.removeAllListeners();
-    }
-  }
-
-  protected override _handleMessage(message: unknown): void {
-    if (isWorkerInitializationError(message)) {
-      this.#closeCause = new Error(message.error);
-    }
-    super._handleMessage(message);
+    worker?.removeAllListeners();
+    await worker?.terminate();
   }
 
   #startWorker(): void {
     if (!existsSync(this._workerEntry)) {
-      void this.close(`Development worker entry not found at "${this._workerEntry}".`);
+      void this.close(new Error(`Development worker entry not found at "${this._workerEntry}".`));
       return;
     }
 
@@ -142,23 +123,9 @@ class NodeDevelopmentRunner extends BaseEnvRunner implements DevelopmentRunner {
       },
     });
     this.#worker = worker;
-    this.#workerHasExited = false;
-    let resolveWorkerExit!: () => void;
-    this.#workerExit = new Promise((resolve) => {
-      resolveWorkerExit = resolve;
-    });
-    worker.once("error", (error) => {
-      this.#closeCause = error;
-      void this.close(error);
-    });
+    worker.once("error", (error) => void this.close(error));
     worker.once("exit", (code) => {
-      this.#workerHasExited = true;
-      resolveWorkerExit();
-      if (!this.closed) {
-        const error = new Error(`Development worker exited with code ${String(code)}.`);
-        this.#closeCause ??= error;
-        void this.close(error);
-      }
+      void this.close(new Error(`Development worker exited with code ${String(code)}.`));
     });
     worker.on("message", (message: unknown) => this._handleMessage(message));
   }
@@ -166,28 +133,3 @@ class NodeDevelopmentRunner extends BaseEnvRunner implements DevelopmentRunner {
 
 export const createNodeDevelopmentRunner: DevelopmentRunnerFactory = (input) =>
   new NodeDevelopmentRunner(input);
-
-async function waitForWorkerExit(workerExit: Promise<void>): Promise<boolean> {
-  let timer: NodeJS.Timeout | undefined;
-  try {
-    return await Promise.race([
-      workerExit.then(() => true),
-      new Promise<false>((resolve) => {
-        timer = setTimeout(() => resolve(false), DEVELOPMENT_WORKER_SHUTDOWN_TIMEOUT_MS);
-        timer.unref();
-      }),
-    ]);
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-function isWorkerInitializationError(
-  value: unknown,
-): value is { readonly error: string; readonly event: "init-error" } {
-  if (typeof value !== "object" || value === null) {
-    return false;
-  }
-  const record = value as Record<string, unknown>;
-  return record.event === "init-error" && typeof record.error === "string";
-}

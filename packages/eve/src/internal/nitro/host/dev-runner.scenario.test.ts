@@ -44,7 +44,7 @@ describe("Node development runner", () => {
       await expect(response.text()).resolves.toBe("worker-ready");
     } finally {
       const closeStartedAt = performance.now();
-      await runner.close();
+      await runner.shutdown();
       closeDurationMs = performance.now() - closeStartedAt;
     }
 
