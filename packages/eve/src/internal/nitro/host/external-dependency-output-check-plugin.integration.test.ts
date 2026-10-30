@@ -102,6 +102,30 @@ async function checkInstalledPackage(files: Readonly<Record<string, string>>) {
   return readdir(serverDir, { recursive: true });
 }
 
+// Checks a chunk whose metadata carries Nitro's traced placeholder for `pg`
+// and whose rendered `code` shows what Nitro rewrote it to.
+async function checkTracedPlaceholder(code: string) {
+  const serverDir = join(await createDirectory("eve-external-output-check-"), "server");
+  await mkdir(serverDir, { recursive: true });
+  await createExternalDependencyOutputCheckPlugin({
+    appRoot: APP_ROOT,
+    externalDependencies: ["pg"],
+  })?.writeBundle(
+    { dir: serverDir },
+    {
+      "index.mjs": {
+        code,
+        dynamicImports: [],
+        fileName: "index.mjs",
+        imports: ["nitro:traced/0/pg"],
+        isEntry: false,
+        name: "chunk",
+        type: "chunk",
+      },
+    },
+  );
+}
+
 const missing = (specifier: string, chunk: string) =>
   `"${specifier}" is listed in build.externalDependencies and imported by the hosted bundle (${chunk}), but the build output cannot resolve it. Add "pg" to the dependencies in ${join(APP_ROOT, "package.json")}.`;
 
@@ -158,6 +182,20 @@ describe("external dependency output check", () => {
         "package.json": JSON.stringify({ exports: "./index.js", name: "pg" }),
       }),
     ).rejects.toThrow(missing("pg", "index.mjs"));
+  });
+
+  it("rejects a traced external Nitro renders as a bare import the output lacks", async () => {
+    await expect(checkTracedPlaceholder('import pg from"pg";')).rejects.toThrow(
+      missing("pg", "index.mjs"),
+    );
+  });
+
+  it("skips a traced external Nitro renders as a path to a version-specific copy", async () => {
+    await expect(
+      checkTracedPlaceholder(
+        'import pg from "./node_modules/.nitro/pg@8.0.0/index.js";\nconst config = { externalDependencies: ["pg"] };',
+      ),
+    ).resolves.toBeUndefined();
   });
 
   it("does nothing when no externals are configured", () => {

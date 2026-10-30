@@ -33,6 +33,8 @@ const PROBE_SOURCE = "export const resolve = (specifier) => import.meta.resolve(
 /**
  * Nitro's tracer resolves a traced external to `nitro:traced/<n>/<import id>`
  * and rewrites it only while rendering, so chunk metadata keeps the placeholder.
+ * It renders the bare import id, or, for a version it could not hoist, a
+ * relative path to the copy it wrote.
  */
 const NITRO_TRACED_ID_PREFIX_RE = /^nitro:traced\/\d+\//;
 
@@ -69,10 +71,13 @@ export function createExternalDependencyOutputCheckPlugin(input: {
         for (const importId of [...output.imports, ...output.dynamicImports]) {
           const specifier = importId.replace(NITRO_TRACED_ID_PREFIX_RE, "");
           if (
-            resolveConfiguredExternalDependency(specifier, input.externalDependencies) !== undefined
+            resolveConfiguredExternalDependency(specifier, input.externalDependencies) ===
+              undefined ||
+            (specifier !== importId && !importsBareSpecifier(output.code, specifier))
           ) {
-            externalImports.push({ chunk: output.fileName, probe, specifier });
+            continue;
           }
+          externalImports.push({ chunk: output.fileName, probe, specifier });
         }
       }
       if (externalImports.length === 0) {
@@ -95,6 +100,12 @@ export function createExternalDependencyOutputCheckPlugin(input: {
       });
     },
   };
+}
+
+/** Matches import syntax, not any string literal: chunks also embed the agent config. */
+function importsBareSpecifier(code: string, specifier: string): boolean {
+  const escaped = specifier.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`\\b(?:from|import)\\s*(?:\\(\\s*)?(["'\`])${escaped}\\1`).test(code);
 }
 
 /**
