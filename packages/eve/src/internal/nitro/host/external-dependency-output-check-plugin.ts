@@ -31,6 +31,12 @@ interface ExternalImport {
 const PROBE_SOURCE = "export const resolve = (specifier) => import.meta.resolve(specifier);\n";
 
 /**
+ * Nitro's tracer resolves a traced external to `nitro:traced/<n>/<import id>`
+ * and rewrites it only while rendering, so chunk metadata keeps the placeholder.
+ */
+const NITRO_TRACED_ID_PREFIX_RE = /^nitro:traced\/\d+\//;
+
+/**
  * Fails the hosted build when a written chunk imports (statically or by a
  * literal dynamic import) a configured external that Node does not resolve,
  * from that chunk, to a file inside the output. Nitro's tracer only warns
@@ -60,7 +66,8 @@ export function createExternalDependencyOutputCheckPlugin(input: {
           continue;
         }
         const probe = join(dirname(join(outputDir, output.fileName)), probeName);
-        for (const specifier of [...output.imports, ...output.dynamicImports]) {
+        for (const importId of [...output.imports, ...output.dynamicImports]) {
+          const specifier = importId.replace(NITRO_TRACED_ID_PREFIX_RE, "");
           if (
             resolveConfiguredExternalDependency(specifier, input.externalDependencies) !== undefined
           ) {
