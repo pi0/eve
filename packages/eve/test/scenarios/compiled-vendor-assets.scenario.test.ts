@@ -181,8 +181,7 @@ type Note = 'request from "./not-an-import"';`,
     const stamp = JSON.parse(
       await readFile(join(COMPILED_VENDOR_ROOT, ".vendor-stamp.json"), "utf8"),
     ) as { toolVersions?: { rolldown?: string; typescript?: string } };
-    const nitroRequire = createRequire(require.resolve("nitro/package.json"));
-    const rolldownPackage = nitroRequire("rolldown/package.json") as { version: string };
+    const rolldownPackage = require("rolldown/package.json") as { version: string };
     const typescriptPackage = require("typescript/package.json") as { version: string };
 
     expect(stamp.toolVersions?.rolldown).toBe(rolldownPackage.version);

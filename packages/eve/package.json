@@ -618,7 +618,8 @@
     "test:tui": "tsc -p tsconfig.tui.json --noEmit && node test/tui-client/run-all.mjs"
   },
   "dependencies": {
-    "nitro": "3.0.260903-beta",
+    "nitro": "3.0.261029-rc",
+    "rolldown": "1.2.15",
     "undici": "8.12.3"
   },
   "devDependencies": {
