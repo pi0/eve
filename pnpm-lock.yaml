@@ -1917,8 +1917,8 @@ importers:
         specifier: 0.6.0
         version: 0.6.0
       env-runner:
-        specifier: 0.3.10
-        version: 0.3.10
+        specifier: 0.3.11
+        version: 0.3.11
       eventsource-parser:
         specifier: 3.1.0
         version: 3.1.0
@@ -9748,8 +9748,8 @@ packages:
     resolution: {integrity: sha512-dtJUTepzMW3Lm/NPxRf3wP4642UWhjL2sQxc+ym2YMj1m/H2zDNQOlezafzkHwn6sMstjHTwG6iQQsctDW/b1A==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
 
-  env-runner@0.3.10:
-    resolution: {integrity: sha512-DOmiJsUH4gUIdLIvTZhO0UmXSPTM6pQbU7hdBt9rfHZQuUaXtGrGOXyL+zfCWuV972q1eF0wjiaVbCjhRM3WeQ==}
+  env-runner@0.3.11:
+    resolution: {integrity: sha512-jKG29hxqGrL9ktunIwmt9aHbP3n995DGUY1KyXS7iGYFoD/yDdpc2CjJt6remFI3x2H1JOmBBMo0KXxjEQ2G6g==}
     hasBin: true
 
   environment@1.1.0:
@@ -23818,7 +23818,7 @@ snapshots:
 
   env-paths@3.0.0: {}
 
-  env-runner@0.3.10:
+  env-runner@0.3.11:
     dependencies:
       crossws: 0.4.17(srvx@1.0.8)
       srvx: 1.0.8
@@ -27179,7 +27179,7 @@ snapshots:
   nitro@3.0.261029-rc:
     dependencies:
       crossws: 0.4.17(srvx@1.0.8)
-      env-runner: 0.3.10
+      env-runner: 0.3.11
       h3: 2.0.8(crossws@0.4.17(srvx@1.0.8))(ocache@0.3.1)
       ocache: 0.3.1
       rou3: 1.0.0

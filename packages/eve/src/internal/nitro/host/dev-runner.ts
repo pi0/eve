@@ -1,9 +1,5 @@
-import { existsSync } from "node:fs";
-import { Worker } from "node:worker_threads";
-
-import { BaseEnvRunner } from "#compiled/env-runner/index.js";
+import { NodeWorkerEnvRunner } from "#compiled/env-runner/index.js";
 import { resolvePackageCompiledFilePath } from "#internal/application/package.js";
-import { toErrorMessage } from "#shared/errors.js";
 
 const DEVELOPMENT_WORKER_SHUTDOWN_TIMEOUT_MS = 15_000;
 
@@ -33,14 +29,13 @@ export interface DevelopmentRunnerInput {
 
 export type DevelopmentRunnerFactory = (input: DevelopmentRunnerInput) => DevelopmentRunner;
 
-// env-runner's own `NodeWorkerEnvRunner` resolves its worker entry through
-// `import.meta.resolve("env-runner/...")`, which fails from eve's vendored copy.
-class NodeDevelopmentRunner extends BaseEnvRunner implements DevelopmentRunner {
-  readonly #closedListeners = new Set<(cause?: unknown) => void>();
-  #worker: Worker | undefined;
+class NodeDevelopmentRunner extends NodeWorkerEnvRunner implements DevelopmentRunner {
+  readonly #closedListeners: Set<(cause?: unknown) => void>;
 
   constructor(input: DevelopmentRunnerInput) {
-    const workerEntry = resolvePackageCompiledFilePath("src/compiled/env-runner/node-worker.js");
+    // Created before `super()`: a missing worker entry closes the runner
+    // inside the base constructor, before class fields exist.
+    const closedListeners = new Set<(cause?: unknown) => void>();
     super({
       data: {
         entry: input.entry,
@@ -48,17 +43,17 @@ class NodeDevelopmentRunner extends BaseEnvRunner implements DevelopmentRunner {
       },
       hooks: {
         onClose: (_runner, cause) => {
-          const listeners = [...this.#closedListeners];
-          this.#closedListeners.clear();
+          const listeners = [...closedListeners];
+          closedListeners.clear();
           for (const listener of listeners) {
             listener(cause);
           }
         },
       },
       name: input.name,
-      workerEntry,
+      workerEntry: resolvePackageCompiledFilePath("src/compiled/env-runner/node-worker.js"),
     });
-    this._initWithVirtualData(() => this.#startWorker());
+    this.#closedListeners = closedListeners;
   }
 
   onceClosed(listener: (cause?: unknown) => void): void {
@@ -69,65 +64,8 @@ class NodeDevelopmentRunner extends BaseEnvRunner implements DevelopmentRunner {
     this.#closedListeners.add(listener);
   }
 
-  override sendMessage(message: unknown): void {
-    if (this.#worker === undefined) {
-      throw new Error("Development worker is not initialized.");
-    }
-    this.#worker.postMessage(message);
-  }
-
   override async shutdown(): Promise<void> {
     await super.shutdown(DEVELOPMENT_WORKER_SHUTDOWN_TIMEOUT_MS);
-  }
-
-  override async waitForReady(timeout: number): Promise<void> {
-    try {
-      await super.waitForReady(timeout);
-    } catch (error) {
-      if (this._closeCause === undefined) {
-        throw error;
-      }
-      throw new Error(
-        `Development worker failed before readiness: ${toErrorMessage(this._closeCause)}`,
-        { cause: this._closeCause },
-      );
-    }
-  }
-
-  protected override _hasRuntime(): boolean {
-    return this.#worker !== undefined;
-  }
-
-  protected override _runtimeType(): string {
-    return "worker";
-  }
-
-  protected override async _closeRuntime(): Promise<void> {
-    const worker = this.#worker;
-    this.#worker = undefined;
-    worker?.removeAllListeners();
-    await worker?.terminate();
-  }
-
-  #startWorker(): void {
-    if (!existsSync(this._workerEntry)) {
-      void this.close(new Error(`Development worker entry not found at "${this._workerEntry}".`));
-      return;
-    }
-
-    const worker = new Worker(this._workerEntry, {
-      env: process.env,
-      workerData: {
-        name: this._name,
-        ...this._data,
-      },
-    });
-    this.#worker = worker;
-    worker.once("error", (error) => void this.close(error));
-    worker.once("exit", (code) => {
-      void this.close(new Error(`Development worker exited with code ${String(code)}.`));
-    });
-    worker.on("message", (message: unknown) => this._handleMessage(message));
   }
 }
 

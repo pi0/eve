@@ -675,7 +675,7 @@
     "commander": "14.0.3",
     "dd-trace": "6.13.0",
     "emulate": "0.6.0",
-    "env-runner": "0.3.10",
+    "env-runner": "0.3.11",
     "eventsource-parser": "3.1.0",
     "jose": "6.2.3",
     "js-yaml": "4.3.2",

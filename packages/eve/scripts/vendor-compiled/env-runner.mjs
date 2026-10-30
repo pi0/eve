@@ -5,7 +5,7 @@ export default {
   compiledPath: "env-runner",
   entries: [
     {
-      entry: "dist/_chunks/common-base-runner.mjs",
+      entry: "dist/runners/node-worker/runner.mjs",
       outputPath: "index",
       declaration: await loadDeclaration("env-runner.d.ts"),
     },
